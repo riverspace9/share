@@ -177,7 +177,70 @@ td.chg{background:var(--warnbg);color:var(--warn);font-weight:600}
 <p class="sub">이슈 829 설계 기준. 모든 단계가 구현된 상태를 그리고, 아직 구현되지 않은 단계에는 <span class="badge b-todo">미구현</span> 을 붙인다. 그 단계를 누르면 지금 코드가 무엇을 하는지 나온다.</p>
 <div class="principle">회사에서 재고가 나가면 <b>출고</b>, 들어오면 <b>입고</b>. 나가고 들어오는 이유는 구분하지 않는다. 그래서 탁송의 마지막 단계와 비탁송이 같은 코드가 된다.</div>
 
-<h2>0. 개념</h2>
+<h2>0. 테이블 관계</h2>
+<div class="erd">
+<div class="grpmap"><div class="gm gm-p"><div class="gmt">플라워<code>FevFlowerOrder*</code></div><div class="gmi">FevFlowerOrders</div><div class="gmi">FevFlowerOrderItems</div></div><div class="gm gm-t"><div class="gmt">재고 이관<code>InvTransfer*</code></div><div class="gmi">InvTransfers</div><div class="gmi">InvTransferItems</div><div class="gmi">InvTransferItemUnits</div></div><div class="gm gm-i"><div class="gmt">재고<code>Inventory*</code></div><div class="gms">실물</div><div class="gmi">InventoryStocks</div><div class="gmi">InventoryUnits</div><div class="gms">기준수량</div><div class="gmi">InventoryBaseQtyHistory</div><div class="gms">출고 전표</div><div class="gmi">InventoryIssues</div><div class="gmi">InventoryIssueItems</div><div class="gms">입고 스캔</div><div class="gmi">InventoryScanSessions</div><div class="gmi">InventoryScanEvents</div><div class="gms">실사</div><div class="gmi">InventoryAudits</div><div class="gmi">InventoryAuditItems</div><div class="gms">입고 전표</div><div class="gmi">InventoryReceipts</div><div class="gmi">InventoryReceiptItems</div></div></div>
+<pre class="mermaid">flowchart LR
+  FO["FevFlowerOrders
+화환 주문"]
+  FOI["FevFlowerOrderItems
+주문 품목"]
+  TR["InvTransfers
+이동 지시서"]
+  TRI["InvTransferItems
+이동 품목"]
+  TRU["InvTransferItemUnits
+품목과 바코드 연결"]
+  ST["InventoryStocks
+회사·품목별 보유 수량"]
+  UN["InventoryUnits
+조사용품 낱개"]
+  IS["InventoryIssues
+출고 전표"]
+  ISI["InventoryIssueItems
+출고 품목"]
+  BQH["InventoryBaseQtyHistory
+기준수량 변경 이력"]
+  SS["InventoryScanSessions
+입고 QR 스캔 세션"]
+  SE["InventoryScanEvents
+스캔 1건"]
+  RC["InventoryReceipts
+입고 전표"]
+  RCI["InventoryReceiptItems
+입고 품목"]
+  FO -->|"1 : N"| FOI
+  TR -->|"1 : N"| TRI
+  TRI -->|"1 : N"| TRU
+  IS -->|"1 : N"| ISI
+  ST -->|"1 : N"| BQH
+  RC -->|"1 : N"| RCI
+  FO -->|"inventory_transfer_id"| TR
+  FOI -->|"inventory_stock_id"| ST
+  TR -->|"issue_id"| IS
+  TR -->|"receipt_id"| RC
+  TRU -->|"inventory_unit_id"| UN
+  SS -->|"1 : N"| SE
+  SS -->|"receipt_id"| RC
+  UN -.->|"last_shipment_id (FK 없음)"| IS
+  classDef p fill:#EEEDFE,stroke:#7F77DD,stroke-width:1.5px,color:#26215C
+  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
+  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
+  class FO,FOI p
+  class TR,TRI,TRU t
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH i</pre>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+if(window.mermaid){
+  var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({startOnLoad:true,securityLevel:"loose",theme:"base",flowchart:{curve:"basis",nodeSpacing:45,rankSpacing:70,padding:14},themeVariables:{fontFamily:"-apple-system,BlinkMacSystemFont,Apple SD Gothic Neo,sans-serif",fontSize:"13px",lineColor:"#8a8880",primaryTextColor:"#1b1b19"}});
+} else {
+  document.querySelector(".mermaid").style.display="none";
+  document.getElementById("mmfb").style.display="block";
+}
+</script>
+<h2>1. 개념</h2>
 <div class="cpt">
 
 <div class="cptq">현재 상태와 발생한 사건을 다른 테이블에 나눈다</div>
@@ -251,69 +314,6 @@ InventoryIssues  &lt;-- issue_id --  InvTransfers  -- receipt_id --&gt;  Invento
 
 </div>
 
-<h2>테이블 관계</h2>
-<div class="erd">
-<div class="grpmap"><div class="gm gm-p"><div class="gmt">플라워<code>FevFlowerOrder*</code></div><div class="gmi">FevFlowerOrders</div><div class="gmi">FevFlowerOrderItems</div></div><div class="gm gm-t"><div class="gmt">재고 이관<code>InvTransfer*</code></div><div class="gmi">InvTransfers</div><div class="gmi">InvTransferItems</div><div class="gmi">InvTransferItemUnits</div></div><div class="gm gm-i"><div class="gmt">재고<code>Inventory*</code></div><div class="gms">실물</div><div class="gmi">InventoryStocks</div><div class="gmi">InventoryUnits</div><div class="gms">기준수량</div><div class="gmi">InventoryBaseQtyHistory</div><div class="gms">출고 전표</div><div class="gmi">InventoryIssues</div><div class="gmi">InventoryIssueItems</div><div class="gms">입고 스캔</div><div class="gmi">InventoryScanSessions</div><div class="gmi">InventoryScanEvents</div><div class="gms">실사</div><div class="gmi">InventoryAudits</div><div class="gmi">InventoryAuditItems</div><div class="gms">입고 전표</div><div class="gmi">InventoryReceipts</div><div class="gmi">InventoryReceiptItems</div></div></div>
-<pre class="mermaid">flowchart LR
-  FO["FevFlowerOrders
-화환 주문"]
-  FOI["FevFlowerOrderItems
-주문 품목"]
-  TR["InvTransfers
-이동 지시서"]
-  TRI["InvTransferItems
-이동 품목"]
-  TRU["InvTransferItemUnits
-품목과 바코드 연결"]
-  ST["InventoryStocks
-회사·품목별 보유 수량"]
-  UN["InventoryUnits
-조사용품 낱개"]
-  IS["InventoryIssues
-출고 전표"]
-  ISI["InventoryIssueItems
-출고 품목"]
-  BQH["InventoryBaseQtyHistory
-기준수량 변경 이력"]
-  SS["InventoryScanSessions
-입고 QR 스캔 세션"]
-  SE["InventoryScanEvents
-스캔 1건"]
-  RC["InventoryReceipts
-입고 전표"]
-  RCI["InventoryReceiptItems
-입고 품목"]
-  FO -->|"1 : N"| FOI
-  TR -->|"1 : N"| TRI
-  TRI -->|"1 : N"| TRU
-  IS -->|"1 : N"| ISI
-  ST -->|"1 : N"| BQH
-  RC -->|"1 : N"| RCI
-  FO -->|"inventory_transfer_id"| TR
-  FOI -->|"inventory_stock_id"| ST
-  TR -->|"issue_id"| IS
-  TR -->|"receipt_id"| RC
-  TRU -->|"inventory_unit_id"| UN
-  SS -->|"1 : N"| SE
-  SS -->|"receipt_id"| RC
-  UN -.->|"last_shipment_id (FK 없음)"| IS
-  classDef p fill:#EEEDFE,stroke:#7F77DD,stroke-width:1.5px,color:#26215C
-  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
-  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
-  class FO,FOI p
-  class TR,TRI,TRU t
-  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH i</pre>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-if(window.mermaid){
-  var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({startOnLoad:true,securityLevel:"loose",theme:"base",flowchart:{curve:"basis",nodeSpacing:45,rankSpacing:70,padding:14},themeVariables:{fontFamily:"-apple-system,BlinkMacSystemFont,Apple SD Gothic Neo,sans-serif",fontSize:"13px",lineColor:"#8a8880",primaryTextColor:"#1b1b19"}});
-} else {
-  document.querySelector(".mermaid").style.display="none";
-  document.getElementById("mmfb").style.display="block";
-}
-</script>
 <div class="tabs" id="tabs"></div>
 <div class="sc" id="scen"></div>
 <div class="ovw" id="ovw"></div>
