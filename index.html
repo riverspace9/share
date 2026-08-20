@@ -262,7 +262,7 @@ if(window.mermaid){
 <code>consignment_type</code> DEPARTURE / ARRIVAL / null(비탁송)<br>
 <code>InventoryScanEvents.result_code</code> NORMAL / EXCESS / UNPLANNED / UNKNOWN_ITEM / DUPLICATE
 <br><br>
-<b>현재고는 재고유형과 무관하게 <code>InventoryStocks.qty</code> 다.</b> 가용재고는 <code>qty - reserved_qty</code> 이고 이것도 두 유형이 같다. 근조기·축기의 <code>base_qty</code> 는 몇 개 있어야 하는지를 정한 목표치이고 현재고를 만들지 않는다. 조사용품의 <code>min_qty</code>(안전 재고)와 같은 성격이다.<br><br><b>근조기ㆍ축기 사용수량</b>은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 <code>issue_type = 'CONSUME'</code> 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 <code>receipt_type = 'RETURN'</code> 전표만 센다. 옛 출고 테이블(<code>FsmsSupplyShipments</code>)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
+<b>현재고는 재고유형과 무관하게 <code>InventoryStocks.qty</code> 다.</b> 가용재고는 <code>qty - reserved_qty</code> 이고 이것도 두 유형이 같다. 근조기·축기의 <code>base_qty</code> 와 조사용품의 <code>min_qty</code>(화면 라벨 '안전 재고')는 둘 다 <b>몇 개 있어야 하는지를 정한 목표치</b>이고 현재고를 만들지 않는다. 모자라면 그만큼 채우는 방식이라 성격이 같다. 근조기·축기는 우리 화면이 판정해 <code>잔여 &lt; 기준</code>일 때 입고 버튼을 켜고, 조사용품은 물류센터가 판정해 보충한다. 커머스의 안전재고처럼 발주량을 따로 계산하거나 미달 경고를 내지 않는다. 두 컬럼을 하나로 합치는 것은 뒤로 미뤄 둔 과제다.<br><br><b>근조기ㆍ축기 사용수량</b>은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 <code>issue_type = 'CONSUME'</code> 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 <code>receipt_type = 'RETURN'</code> 전표만 센다. 옛 출고 테이블(<code>FsmsSupplyShipments</code>)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
 <br><br>
 <b>수량과 실물은 층이 다르다.</b> <code>InventoryStocks.qty</code> 가 품목별 현재고이고, <code>InventoryUnits</code> 는 조사용품 바코드 한 개가 한 행이다. 유닛은 그 수량 안의 어느 실물이 어디 있는지를 가리키는 것이지 별도의 재고 셈이 아니다. 두 값이 어긋나면 실사가 <code>qty</code> 를 실물에 맞춘다.
 <br><br>
