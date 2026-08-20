@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>재고 입출고 흐름 (이슈 829 설계)</title>
+<style>
+:root{
+ --bg:#faf9f7; --card:#fff; --ink:#1b1b19; --dim:#6b6a65; --line:#e3e1db;
+ --acc:#185FA5; --accbg:#E6F1FB; --ok:#3B6D11; --okbg:#EAF3DE;
+ --new:#534AB7; --newbg:#EEEDFE; --warn:#854F0B; --warnbg:#FAEEDA;
+ --todo:#A32B2B; --todobg:#FBE9E7;
+}
+@media (prefers-color-scheme:dark){
+ :root{ --bg:#17171a; --card:#202024; --ink:#eceae6; --dim:#9b9a94; --line:#33333a;
+ --acc:#85B7EB; --accbg:#0C447C; --ok:#97C459; --okbg:#27500A;
+ --new:#AFA9EC; --newbg:#3C3489; --warn:#EF9F27; --warnbg:#633806;
+ --todo:#F5A3A3; --todobg:#5C1F1F; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:22px;font-weight:600;margin:0 0 6px}
+h2{font-size:17px;font-weight:600;margin:28px 0 10px}
+.sub{color:var(--dim);font-size:14px;margin:0 0 18px}
+.principle{background:var(--accbg);color:var(--acc);border-radius:10px;padding:12px 16px;font-size:15px;margin:0 0 22px}
+.erd{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:24px}
+@media (prefers-color-scheme:dark){.erd{background:#f7f6f3}}
+.grpmap{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:14px;margin-bottom:22px}
+.gm{border:1.5px solid;border-radius:12px;padding:14px 16px}
+.gm-p{border-color:#7F77DD;background:rgba(127,119,221,.07)}
+.gm-t{border-color:#1D9E75;background:rgba(29,158,117,.07)}
+.gm-i{border-color:#D85A30;background:rgba(216,90,48,.07)}
+.gmt{font-size:13.5px;font-weight:600;margin-bottom:10px;display:flex;align-items:baseline;gap:8px}
+.gm-p .gmt{color:#534AB7}.gm-t .gmt{color:#0F6E56}.gm-i .gmt{color:#993C1D}
+.gmt code{font-weight:400;font-size:11.5px;color:#6b6a65;font-family:ui-monospace,Menlo,monospace}
+.gmi{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;padding:3px 0;color:#1b1b19}
+.gms{font-size:11.5px;color:#6b6a65;margin:9px 0 3px}
+.gm-i{display:grid;grid-template-columns:1fr 1fr 1fr;column-gap:16px;align-content:start}
+.gm-i .gmt{grid-column:1/-1}
+.erd .mermaid{display:flex;justify-content:center}
+.mlg{display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+.mlg i{display:inline-block;width:13px;height:13px;border-radius:3px;border:1.5px solid;margin-right:7px;vertical-align:-2px}
+.mlg code{font-size:11.5px}
+.erd .mermaid svg{max-width:100%;height:auto}
+/*SC*/
+.sc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.sc h3{font-size:14px;font-weight:600;margin:0 0 10px}
+.sc .meta{font-size:13.5px;color:var(--dim);margin-bottom:12px;line-height:1.8}
+.sc .meta b{color:var(--ink);font-weight:600}
+.sc table{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cmp{margin-top:14px;border:1px solid var(--border-accent);border-radius:10px;padding:12px 14px;background:var(--bg-accent)}
+.cmpt{font-size:12.5px;font-weight:600;color:var(--text-accent);margin-bottom:8px}
+.cmp table{width:100%;border-collapse:collapse;border:none}
+.cmp th{text-align:left;font-size:11.5px;color:var(--text-accent);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--border-accent)}
+.cmp td{padding:6px 8px;font-size:12.5px;border-bottom:1px solid var(--border-accent);font-family:-apple-system,sans-serif}
+.cmp td:first-child{color:var(--dim);white-space:nowrap}
+.cmp td.mono{font-family:ui-monospace,Menlo,monospace}
+.cmp tr:last-child td{border-bottom:none}
+.sc td{font-family:-apple-system,sans-serif;font-size:12.5px}
+.sc td.mono{font-family:ui-monospace,Menlo,monospace}
+.tabs{display:flex;gap:8px;margin-bottom:18px}
+.tab{padding:10px 18px;border:1px solid var(--line);background:var(--card);color:var(--dim);border-radius:8px;cursor:pointer;font:inherit;font-size:14px}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.steps{display:flex;gap:0;flex-wrap:wrap;margin-bottom:20px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.step{flex:1;min-width:132px;padding:12px 10px;border-right:1px solid var(--line);cursor:pointer;text-align:center}
+.step:last-child{border-right:none}
+.step.on{background:var(--accbg)}
+.step .no{font-size:11px;color:var(--dim);letter-spacing:.04em}
+.step .nm{font-size:13px;font-weight:600;margin-top:2px}
+.step.on .no,.step.on .nm{color:var(--acc)}
+.trig{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.trig .who{font-size:13px;color:var(--dim);margin-bottom:6px}
+.trig .what{font-size:16px;font-weight:600;margin-bottom:8px}
+.trig code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.5px}
+.trig .desc{font-size:14px;color:var(--dim);margin-top:8px}
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.tbl .hd{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tbl .hd .db{font-weight:400;color:var(--dim);font-size:12px}
+.tbl .hd .role{font-weight:400;color:var(--dim);font-size:12px;margin-left:6px}
+.tbl.void{opacity:.55}
+.ovw{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+.ocap{font-size:12px;color:var(--dim);margin-bottom:10px}
+.ovw table{width:100%;border-collapse:collapse}
+.ovw th{text-align:left;font-size:11.5px;color:var(--dim);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line)}
+.ovw td{padding:8px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:top}
+.ovw tr[data-s]{cursor:pointer}
+.ovw tr[data-s]:hover td{background:var(--bg)}
+.ovw tr.on td{background:var(--bg-accent)}
+.ovw tr:last-child td{border-bottom:none}
+.ostep{font-weight:600;white-space:nowrap}
+.owho{color:var(--dim);white-space:nowrap;font-size:12px}
+.ot{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;padding:2px 7px;border-radius:5px;margin:2px 5px 2px 0;border:1px solid}
+.ot-p{border-color:#7F77DD;color:#534AB7}.ot-t{border-color:#1D9E75;color:#0F6E56}.ot-i{border-color:#D85A30;color:#993C1D}
+@media (prefers-color-scheme:dark){.ot-p{color:#AFA9EC}.ot-t{color:#5DCAA5}.ot-i{color:#F0997B}}
+.onone{color:var(--dim);font-size:12px}
+.idv{cursor:pointer;border-bottom:1px dashed var(--border-strong);padding:0 1px}
+.idv.lit{background:#FAC775;color:#412402;border-radius:3px;border-bottom:none;font-weight:600}
+.sumbar{margin-bottom:12px}
+.sumbar .sl{font-size:13px;color:var(--dim);margin:0 0 8px}
+.srow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:7px}
+.sg{font-size:12px;font-weight:600;min-width:74px}
+.sg-p{color:#534AB7}.sg-t{color:#0F6E56}.sg-i{color:#993C1D}
+@media (prefers-color-scheme:dark){.sg-p{color:#AFA9EC}.sg-t{color:#5DCAA5}.sg-i{color:#F0997B}}
+.sh{font-size:12.5px;font-weight:600;margin:14px 0 8px;padding-left:9px;border-left:2px solid}
+.sh-i{color:#993C1D;border-left-color:#D85A30}
+@media (prefers-color-scheme:dark){.sh-i{color:#F0997B}}
+.sumbar .sl{font-size:13px;color:var(--dim);margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:5px 11px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.chip em{font-style:normal;color:var(--dim);font-size:11.5px;margin-left:5px}
+.chip-p{border-color:#7F77DD}.chip-t{border-color:#1D9E75}.chip-i{border-color:#D85A30}
+.ctl{margin-bottom:14px;font-size:13px;color:var(--dim)}
+.ctl label{cursor:pointer;user-select:none}
+.tbl.hit{box-shadow:0 0 0 2px var(--acc)}
+.glab{font-size:11px;color:var(--dim);margin-left:8px;font-weight:400}
+.flat .tbl{margin-bottom:14px}
+.gsec{border:1.5px solid;border-radius:14px;padding:16px 16px 4px;margin-bottom:22px}
+.gsec-p{border-color:#7F77DD;background:rgba(127,119,221,.055)}
+.gsec-t{border-color:#1D9E75;background:rgba(29,158,117,.055)}
+.gsec-i{border-color:#D85A30;background:rgba(216,90,48,.055)}
+.gsec .gh{margin:0 0 12px}
+.gpfx{font-weight:400;font-size:11.5px;color:var(--dim);font-family:ui-monospace,Menlo,monospace;margin-left:6px}
+.tbl-p .hd span:first-child{color:#534AB7}
+.tbl-t .hd span:first-child{color:#0F6E56}
+.tbl-i .hd span:first-child{color:#993C1D}
+@media (prefers-color-scheme:dark){
+ .gsec-p{background:rgba(127,119,221,.13)}
+ .gsec-t{background:rgba(29,158,117,.13)}
+ .gsec-i{background:rgba(216,90,48,.13)}
+ .tbl-p .hd span:first-child{color:#AFA9EC}
+ .tbl-t .hd span:first-child{color:#5DCAA5}
+ .tbl-i .hd span:first-child{color:#F0997B}
+}
+.gh{font-size:14px;font-weight:600;margin:22px 0 10px}
+.gh-p{color:#534AB7;border-left-color:#7F77DD}
+.gh-t{color:#0F6E56;border-left-color:#1D9E75}
+.gh-i{color:#993C1D;border-left-color:#D85A30}
+@media (prefers-color-scheme:dark){.gh-p{color:#AFA9EC}.gh-t{color:#5DCAA5}.gh-i{color:#F0997B}}
+th.jn{color:var(--acc);font-style:normal}
+td.jn{font-family:-apple-system,sans-serif;color:var(--dim);background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(128,128,128,.05) 6px,rgba(128,128,128,.05) 12px)}
+td.none{color:var(--dim);font-family:-apple-system,sans-serif;font-size:12.5px;text-align:center;padding:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:8px 12px;color:var(--dim);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px}
+td{padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr.new td{background:var(--newbg)}
+td.chg{background:var(--warnbg);color:var(--warn);font-weight:600}
+.badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10.5px;font-family:-apple-system,sans-serif}
+.b-new{background:var(--newbg);color:var(--new)}
+.b-chg{background:var(--warnbg);color:var(--warn)}
+.empty{padding:14px;color:var(--dim);font-size:13px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-bottom:18px;align-items:center}
+.note{background:var(--okbg);color:var(--ok);border-radius:8px;padding:10px 14px;font-size:13.5px;margin-bottom:14px}
+.b-todo{background:var(--todobg);color:var(--todo)}
+.drv{margin-top:10px;background:var(--accbg);border-radius:8px;padding:10px 12px}
+.drvt{font-size:11px;color:var(--acc);font-weight:700;margin-bottom:6px}
+.drvi{display:inline-block;margin:0 14px 4px 0;font-size:13px;color:var(--ink)}
+.drvi b{font-weight:600;color:var(--dim);margin-right:6px;font-size:12px}
+.stodo{margin-top:5px;display:inline-block;padding:1px 7px;border-radius:99px;font-size:10px;background:var(--todobg);color:var(--todo);font-weight:600}
+.todo{background:var(--todobg);color:var(--todo);border-radius:8px;padding:10px 14px;font-size:13.5px;margin-top:10px;line-height:1.65}
+.todo b{display:block;margin-bottom:3px}
+.otodo{display:inline-block;margin-left:6px;padding:0 6px;border-radius:99px;font-size:10px;background:var(--todobg);color:var(--todo);font-weight:600;vertical-align:middle}
+.foot{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:13px}
+.foot code{font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>재고 입출고 흐름</h1>
+<p class="sub">이슈 829 설계 기준. 모든 단계가 구현된 상태를 그리고, 아직 구현되지 않은 단계에는 <span class="badge b-todo">미구현</span> 을 붙인다. 그 단계를 누르면 지금 코드가 무엇을 하는지 나온다.</p>
+<div class="principle">회사에서 재고가 나가면 <b>출고</b>, 들어오면 <b>입고</b>. 나가고 들어오는 이유는 구분하지 않는다. 그래서 탁송의 마지막 단계와 비탁송이 같은 코드가 된다.</div>
+
+<h2>테이블 관계</h2>
+<div class="erd">
+<div class="grpmap"><div class="gm gm-p"><div class="gmt">플라워<code>FevFlowerOrder*</code></div><div class="gmi">FevFlowerOrders</div><div class="gmi">FevFlowerOrderItems</div></div><div class="gm gm-t"><div class="gmt">재고 이관<code>InvTransfer*</code></div><div class="gmi">InvTransfers</div><div class="gmi">InvTransferItems</div><div class="gmi">InvTransferItemUnits</div></div><div class="gm gm-i"><div class="gmt">재고<code>Inventory*</code></div><div class="gms">실물</div><div class="gmi">InventoryStocks</div><div class="gmi">InventoryUnits</div><div class="gms">기준수량</div><div class="gmi">InventoryBaseQtyHistory</div><div class="gms">출고 전표</div><div class="gmi">InventoryIssues</div><div class="gmi">InventoryIssueItems</div><div class="gms">입고 스캔</div><div class="gmi">InventoryScanSessions</div><div class="gmi">InventoryScanEvents</div><div class="gms">실사</div><div class="gmi">InventoryAudits</div><div class="gmi">InventoryAuditItems</div><div class="gms">입고 전표</div><div class="gmi">InventoryReceipts</div><div class="gmi">InventoryReceiptItems</div></div></div>
+<pre class="mermaid">flowchart LR
+  FO["FevFlowerOrders
+화환 주문"]
+  FOI["FevFlowerOrderItems
+주문 품목"]
+  TR["InvTransfers
+이동 지시서"]
+  TRI["InvTransferItems
+이동 품목"]
+  TRU["InvTransferItemUnits
+품목과 바코드 연결"]
+  ST["InventoryStocks
+회사·품목별 보유 수량"]
+  UN["InventoryUnits
+조사용품 낱개"]
+  IS["InventoryIssues
+출고 전표"]
+  ISI["InventoryIssueItems
+출고 품목"]
+  BQH["InventoryBaseQtyHistory
+기준수량 변경 이력"]
+  SS["InventoryScanSessions
+입고 QR 스캔 세션"]
+  SE["InventoryScanEvents
+스캔 1건"]
+  RC["InventoryReceipts
+입고 전표"]
+  RCI["InventoryReceiptItems
+입고 품목"]
+  FO -->|"1 : N"| FOI
+  TR -->|"1 : N"| TRI
+  TRI -->|"1 : N"| TRU
+  IS -->|"1 : N"| ISI
+  ST -->|"1 : N"| BQH
+  RC -->|"1 : N"| RCI
+  FO -->|"inventory_transfer_id"| TR
+  FOI -->|"inventory_stock_id"| ST
+  TR -->|"issue_id"| IS
+  TR -->|"receipt_id"| RC
+  TRU -->|"inventory_unit_id"| UN
+  SS -->|"1 : N"| SE
+  SS -->|"receipt_id"| RC
+  UN -.->|"last_shipment_id (FK 없음)"| IS
+  classDef p fill:#EEEDFE,stroke:#7F77DD,stroke-width:1.5px,color:#26215C
+  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
+  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
+  class FO,FOI p
+  class TR,TRI,TRU t
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH i</pre>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+if(window.mermaid){
+  var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({startOnLoad:true,securityLevel:"loose",theme:"base",flowchart:{curve:"basis",nodeSpacing:45,rankSpacing:70,padding:14},themeVariables:{fontFamily:"-apple-system,BlinkMacSystemFont,Apple SD Gothic Neo,sans-serif",fontSize:"13px",lineColor:"#8a8880",primaryTextColor:"#1b1b19"}});
+} else {
+  document.querySelector(".mermaid").style.display="none";
+  document.getElementById("mmfb").style.display="block";
+}
+</script>
+<div class="tabs" id="tabs"></div>
+<div class="sc" id="scen"></div>
+<div class="ovw" id="ovw"></div>
+<div class="steps" id="steps"></div>
+<div class="trig" id="trig"></div>
+<div class="sumbar" id="sum"></div>
+<div class="ctl"><label><input type="checkbox" id="reo"> 바뀐 테이블을 맨 위로 모으기</label></div>
+<div class="legend">
+  <span><span class="badge b-new">새 행</span> 이 단계에서 INSERT</span>
+  <span><span class="badge b-chg">변경</span> 이 단계에서 UPDATE</span>
+  <span>회색 행은 이전 단계에서 만들어진 것</span>
+  <span><span class="badge b-todo">미구현</span> 이 단계의 표는 구현 후 모습이다</span>
+</div>
+<div id="note"></div>
+<div id="tables"></div>
+
+<div class="foot">
+<b>상태 값</b><br>
+<code>InvTransfers.status</code> PREPARING / IN_TRANSIT / COMPLETED / CANCELLED &nbsp;·&nbsp;
+<code>InvTransfers.transfer_type</code> TRANSFER(지점 간) / DELIVERY(자사 배송)<br>
+<code>InventoryUnits.status</code> IN_STOCK / RESERVED / IN_TRANSIT / CONSUMED &nbsp;·&nbsp;
+<code>inventory_type</code> FUNERAL_SUPPLIES / CONDOLENCE_FLAG / CONGRATULATORY_FLAG<br>
+<code>InventoryIssues.issue_type</code> TRANSFER(회사 간 이동) / CONSUME(외부로 나감) &nbsp;·&nbsp;
+<code>InventoryReceipts.receipt_type</code> EXTERNAL / RETURN / TRANSFER<br>
+<code>FevFlowerOrders.order_status</code> ORDERED / CONFIRMED / DELIVERING / DELIVERED / CANCELLED &nbsp;·&nbsp;
+<code>consignment_type</code> DEPARTURE / ARRIVAL / null(비탁송)<br>
+<code>InventoryScanEvents.result_code</code> NORMAL / EXCESS / UNPLANNED / UNKNOWN_ITEM / DUPLICATE
+<br><br>
+<b>현재고는 재고유형과 무관하게 <code>InventoryStocks.qty</code> 다.</b> 가용재고는 <code>qty - reserved_qty</code> 이고 이것도 두 유형이 같다. 근조기·축기의 <code>base_qty</code> 는 몇 개 있어야 하는지를 정한 목표치이고 현재고를 만들지 않는다. 조사용품의 <code>min_qty</code>(안전 재고)와 같은 성격이다.<br><br><b>근조기ㆍ축기 사용수량</b>은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 <code>issue_type = 'CONSUME'</code> 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 <code>receipt_type = 'RETURN'</code> 전표만 센다. 옛 출고 테이블(<code>FsmsSupplyShipments</code>)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
+<br><br>
+<b>수량과 실물은 층이 다르다.</b> <code>InventoryStocks.qty</code> 가 품목별 현재고이고, <code>InventoryUnits</code> 는 조사용품 바코드 한 개가 한 행이다. 유닛은 그 수량 안의 어느 실물이 어디 있는지를 가리키는 것이지 별도의 재고 셈이 아니다. 두 값이 어긋나면 실사가 <code>qty</code> 를 실물에 맞춘다.
+<br><br>
+<b>재고유형은 전표 헤더가 아니라 품목 행이 갖는다.</b> 한 이동에 조사용품과 근조기가 섞일 수 있으므로, 전표 한 건이 유형이 다른 품목을 함께 담는다.
+</div>
+</div>
+<script>
+var SCHEMA = {
+ FevFlowerOrders:{grp:'플라워', role:'플라워 지점의 주문 1건. 화환도 여기 담기지만 모든 주문이 화환은 아니다. 탁송이면 출발 지점 주문과 도착 지점 주문 두 건이 생긴다', cols:['order_id','order_no','company_id','consignment_type','order_status','inventory_transfer_id']},
+ FevFlowerOrderItems:{grp:'플라워', role:'주문 품목. 발주 라인을 스냅샷으로 복사하고 어느 재고 행에서 나갈지 가리킨다 (재고 무관 컬럼 15개는 생략)', cols:['flower_order_item_id','flower_order_id','line_no_snapshot','item_code_snapshot','item_name_snapshot','unit_snapshot','quantity_snapshot','inventory_stock_id']},
+ InvTransfers:{grp:'재고 이관', role:'재고이동 지시서. 탁송과 자사 배송을 한 자료구조로 담는다. erp_doc_no 는 ERP 연동 안에서만 쓰는 컬럼이다', cols:['transfer_id','transfer_type','source_company_id','destination_company_id','status','issue_id','receipt_id','erp_doc_no']},
+ InvTransferItems:{grp:'재고 이관', join:1, role:'이동 품목. 재고유형이 품목마다 붙어 한 이동에 유형이 섞일 수 있다', cols:['transfer_item_id','transfer_id','item_cd','inventory_type','requested_qty']},
+ InvTransferItemUnits:{grp:'재고 이관', role:'이동 품목과 실물 바코드를 연결한다. 조사용품만 해당한다', cols:['id','transfer_item_id','inventory_unit_id','unloaded_at']},
+ InventoryStocks:{grp:'재고', sub:'실물 재고 (수량과 낱개)', join:1, role:'회사·품목별 재고 1행. 현재고는 재고유형과 무관하게 qty 이고 가용재고는 qty - reserved_qty 다. base_qty 는 근조기·축기가 몇 개 있어야 하는지를 정한 목표치이고 현재고 계산에 들어가지 않는다', cols:['stock_id','company_id','item_cd','inventory_type','qty','reserved_qty','base_qty']},
+ InventoryUnits:{grp:'재고', sub:'실물 재고 (수량과 낱개)', join:1, role:'조사용품 실물 한 개. 바코드로 어느 낱개가 어디 있는지를 추적한다. 수량 자체는 InventoryStocks.qty 가 갖고 이 행은 그 안의 개별 실물을 가리킨다. 근조기·축기는 이 행이 없다', cols:['unit_id','barcode','company_id','item_cd','inventory_type','status','last_shipment_id']},
+ InventoryBaseQtyHistory:{grp:'재고', sub:'기준수량', join:1, role:'근조기·축기 기준수량(base_qty) 변경 이력. 목표치를 누가 언제 얼마로 바꿨는지 남긴다. 본사 관리자가 편집할 때만 쌓인다', cols:['base_qty_history_id','inventory_stock_id','item_cd','old_qty','new_qty','reason']},
+ InventoryIssues:{grp:'재고', sub:'출고 전표', role:'출고 전표. 회사에서 재고가 나간 사실을 기록한다', cols:['issue_id','company_id','issue_type','status','issued_at']},
+ InventoryIssueItems:{grp:'재고', sub:'출고 전표', join:1, role:'출고 품목. 사용수량은 CONSUME 전표의 이 행을 합산한다', cols:['issue_item_id','issue_id','item_cd','inventory_type','qty']},
+ InventoryScanSessions:{grp:'재고', sub:'입고 스캔', role:'QR 스캔 화면의 세션. session_type 이 RECEIVING(입고)과 AUDIT(실사) 두 가지다. 조사용품 전용이며, 입고 완료 시 스캔한 품목이 걸린 운송중 재고이동도 함께 수령 처리한다', cols:['scan_session_id','session_type','company_id','inventory_type','status','receipt_id']},
+ InventoryScanEvents:{grp:'재고', sub:'입고 스캔', join:1, role:'스캔 1건. 완료 전까지 여기에만 쌓이고 재고에는 반영되지 않는다. result_code 는 NORMAL·EXCESS·UNPLANNED·UNKNOWN_ITEM·DUPLICATE 다', cols:['scan_event_id','scan_session_id','barcode','item_cd','result_code','voided']},
+ InventoryAudits:{grp:'재고', sub:'실사', role:'재고 실사 1건. 시작 시점의 재고 수량을 장부 수량으로 복사한다', cols:['inventory_audit_id','company_id','inventory_type','status','audit_dt']},
+ InventoryAuditItems:{grp:'재고', sub:'실사', join:1, role:'실사 품목. book_qty 는 시작 시점의 InventoryStocks.qty 복사본이고, actual_qty 는 찍거나 입력한 수, diff_qty 는 그 차이다', cols:['inventory_audit_item_id','inventory_audit_id','item_cd','book_qty','actual_qty','diff_qty']},
+ InventoryReceipts:{grp:'재고', sub:'입고 전표', role:'입고 전표. 회사로 재고가 들어온 사실을 기록한다', cols:['receipt_id','company_id','receipt_type','status','receipt_dt']},
+ InventoryReceiptItems:{grp:'재고', sub:'입고 전표', join:1, role:'입고 품목. 근조기·축기 반납 합산은 receipt_type=RETURN 전표만 센다', cols:['receipt_item_id','receipt_id','item_cd','inventory_type','qty']}
+};
+
+var ITEM_NAME = {'A0100010':'[조사용품] 현진시닝(300인분)','B0201001':'근조기','C0310220':'[근조기]LG전자'};
+
+var BASE_A = [
+ ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'5',reserved_qty:'0',base_qty:'null'}],
+ ['InventoryStocks','ST-2',{stock_id:'ST-2',company_id:'서울지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
+ ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
+ ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+];
+var BASE_B = [
+ ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'5',reserved_qty:'0',base_qty:'null'}],
+ ['InventoryStocks','ST-2',{stock_id:'ST-2',company_id:'부산지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
+ ['InventoryStocks','ST-3',{stock_id:'ST-3',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'0',reserved_qty:'0',base_qty:'null'}],
+ ['InventoryStocks','ST-4',{stock_id:'ST-4',company_id:'서울지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
+ ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
+ ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+];
+
+function ins(t,k,d){return{t:t,k:k,op:'I',d:d};}
+function upd(t,k,d){return{t:t,k:k,op:'U',d:d};}
+
+var ORDER_ITEMS='<table><thead><tr><th>품목코드</th><th>품목명</th><th>재고유형</th><th>단위</th><th>수량</th><th>재고 추적</th></tr></thead><tbody><tr><td class="mono">A0100010</td><td>[조사용품] 현진시닝(300인분)</td><td class="mono">FUNERAL_SUPPLIES</td><td>BOX</td><td>2</td><td>바코드 낱개 (BC-1001, BC-1002)</td></tr><tr><td class="mono">B0201001</td><td>근조기</td><td class="mono">CONDOLENCE_FLAG</td><td>EA</td><td>3</td><td>수량만. 현재고는 기준수량에서 사용수량을 뺀 값이다</td></tr></tbody></table>';
+
+var FLOW_A = {
+ name:'비탁송 (일반 배송)',
+ desc:'서울지점이 자기 재고로 장례식장에 배송한다. 재고가 바뀌는 시점은 출고 한 번뿐이다.',
+ scen:'<h3>주문 내용</h3><div class="meta">현진웹 발주번호 <b>PO-2026-0001</b><br>배송 경로 <b>서울지점 → OO장례식장</b><br>서울지점이 자기 재고로 바로 배송한다. 재고이동은 자사 배송(<b>DELIVERY</b>)으로 만들어지고 도착사가 없다.</div>'+ORDER_ITEMS,
+ base:BASE_A,
+ steps:[
+  {no:'1', nm:'발주 확정 접수', who:'현진웹 (행사관리)', http:'POST /v1/fsms/partners/flower/hjw-orders',
+   svc:'FlowerOrdersService.create',
+   desc:'현진웹에서 발주가 확정되면 FSMS로 넘어온다. 주문 1건과 함께 자사 배송 이동(DELIVERY)이 만들어진다. 수량 예약은 다음 단계다.',
+   note:'비탁송도 InvTransfers 행을 만드는 것이 이 설계의 핵심이다. 자료구조를 탁송과 하나로 맞춰야 뒤 단계 코드가 같아진다.',
+   todo:'Task 7. 지금은 비탁송 주문이 InvTransfers 행을 만들지 않는다. createTransferInTransaction 호출이 탁송 분기 안에만 있다(flower-orders.service.ts:1116).',
+   ops:[
+    ins('FevFlowerOrders','FO-1',{order_id:'FO-1',order_no:'PO-2026-0001',company_id:'서울지점',consignment_type:'null',order_status:'ORDERED',inventory_transfer_id:'TR-1'}),
+    ins('FevFlowerOrderItems','FOI-1',{flower_order_item_id:'FOI-1',flower_order_id:'FO-1',line_no_snapshot:'1',item_code_snapshot:'A0100010',item_name_snapshot:'[조사용품] 현진시닝(300인분)',unit_snapshot:'BOX',quantity_snapshot:'2',inventory_stock_id:'ST-1'}),
+    ins('FevFlowerOrderItems','FOI-2',{flower_order_item_id:'FOI-2',flower_order_id:'FO-1',line_no_snapshot:'2',item_code_snapshot:'B0201001',item_name_snapshot:'근조기',unit_snapshot:'EA',quantity_snapshot:'3',inventory_stock_id:'ST-2'}),
+    ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'DELIVERY',source_company_id:'서울지점',destination_company_id:'null',status:'PREPARING',issue_id:'null',receipt_id:'null'}),
+    ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'}),
+    ins('InvTransferItems','TI-2',{transfer_item_id:'TI-2',transfer_id:'TR-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',requested_qty:'3'})
+   ]},
+  {no:'2', nm:'상품 준비', who:'협력사 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/confirm',
+   svc:'FlowerOrdersService.confirm',
+   desc:'주문 상태가 바뀌고 조사용품 수량이 예약된다. qty 는 그대로이고 reserved_qty 만 오른다. 가용수량은 qty - reserved_qty 다.',
+   note:'예약은 qty - reserved_qty >= 요청수량 일 때만 통과한다(inventory-transfer.service.ts:857). 근조기 재고 행은 qty 가 0이라 이 조건에 걸린다. 근조기를 이동 품목으로 담는 경로가 열리려면 예약과 차감이 근조기를 건너뛰거나 다른 값을 보도록 정해야 한다. 아직 정해지지 않았다.',
+   todo:'Task 7. 지금은 비탁송 confirm 이 주문 상태만 바꾼다. 수량 예약이 없고, 대신 3단계에서 바코드마다 1씩 예약된다.',
+   ops:[
+    upd('FevFlowerOrders','FO-1',{order_status:'CONFIRMED'}),
+    upd('InventoryStocks','ST-1',{reserved_qty:'2'})
+   ]},
+  {no:'3', nm:'품목 확인 QR', who:'협력사 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/item-verifications',
+   svc:'FlowerOrdersService.verifyItems',
+   desc:'조사용품 바코드를 스캔해 어느 실물 유닛을 내보낼지 정한다. 조사용품도 수량은 InventoryStocks에 있고, 이 단계는 그중 어느 낱개인지를 정하는 것이다. 근조기는 유닛 행이 없어 이 단계를 거치지 않는다.',
+   todo:'Task 8. 지금은 비탁송이 InvTransferItemUnits 가 아니라 FevFlowerOrderItemUnits 에 기록한다. 수량 예약도 이 시점에 바코드마다 1씩 걸린다(inventory-unit.service.ts:68).',
+   ops:[
+    ins('InvTransferItemUnits','TU-1',{id:'TU-1',transfer_item_id:'TI-1',inventory_unit_id:'U-1',unloaded_at:'null'}),
+    ins('InvTransferItemUnits','TU-2',{id:'TU-2',transfer_item_id:'TI-1',inventory_unit_id:'U-2',unloaded_at:'null'}),
+    upd('InventoryUnits','U-1',{status:'RESERVED'}),
+    upd('InventoryUnits','U-2',{status:'RESERVED'})
+   ]},
+  {no:'4', nm:'상품 출고', who:'협력사 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/ship',
+   svc:'FlowerOrdersService.ship',
+   desc:'회사에서 재고가 나간다. 출고 전표를 남긴다. 외부로 나가는 것이므로 issue_type은 CONSUME이다.',
+   note:'전표 한 건이 조사용품 품목과 근조기 품목을 함께 담는다. 재고유형은 전표 헤더가 아니라 품목 행이 갖는다. 조사용품은 qty 가 5에서 3으로 줄고, 근조기는 qty 가 아니라 이 CONSUME 전표가 사용수량 3을 만들어 잔여가 10에서 7이 된다.',
+   todo:'Task 9. 지금은 출고 전표를 만들지 않는다. 조사용품 유닛만 CONSUMED 로 옮기고 수량을 1씩 뺀다. 근조기·축기는 아무 처리도 일어나지 않아 나간 사실이 어디에도 남지 않는다.',
+   derived:[['근조기 기준수량','10'],['근조기 사용수량','0 → 3'],['근조기 잔여수량(현재고)','10 → 7']],
+   ops:[
+    upd('FevFlowerOrders','FO-1',{order_status:'DELIVERING'}),
+    ins('InventoryIssues','ISS-1',{issue_id:'ISS-1',company_id:'서울지점',issue_type:'CONSUME',status:'COMPLETED',issued_at:'2026-08-20 10:12'}),
+    ins('InventoryIssueItems','II-1',{issue_item_id:'II-1',issue_id:'ISS-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    ins('InventoryIssueItems','II-2',{issue_item_id:'II-2',issue_id:'ISS-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
+    upd('InventoryUnits','U-1',{status:'CONSUMED',last_shipment_id:'ISS-1'}),
+    upd('InventoryUnits','U-2',{status:'CONSUMED',last_shipment_id:'ISS-1'}),
+    upd('InventoryStocks','ST-1',{qty:'3',reserved_qty:'0'})
+   ]},
+  {no:'5', nm:'배송 완료', who:'협력사 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/deliver',
+   svc:'FlowerOrdersService.deliver',
+   desc:'상태 전이만 일어난다. 재고 차감은 4단계에서 끝났다.',
+   ops:[ upd('FevFlowerOrders','FO-1',{order_status:'DELIVERED'}) ]}
+ ]
+};
+
+var FLOW_B = {
+ name:'탁송 (부산지점 → 서울지점 → 장례식장)',
+ desc:'출발 지점에서 도착 지점으로 보낸 뒤, 도착 지점이 장례식장에 배송한다. 재고가 바뀌는 시점이 셋이다. 출고(상차) → 입고(하차) → 출고(배송).',
+ scen:'<h3>주문 내용</h3><div class="meta">현진웹 발주번호 <b>PO-2026-0002</b><br>배송 경로 <b>부산지점 → 서울지점 → OO장례식장</b><br>서울지점에 재고가 없어 부산지점에서 보낸다. 재고이동은 지점 간 이동(<b>TRANSFER</b>)이고 도착사가 서울지점이다.</div>'+ORDER_ITEMS,
+ base:BASE_B,
+ steps:[
+  {no:'1', nm:'발주 확정 접수', who:'현진웹 (행사관리)', http:'POST /v1/fsms/partners/flower/hjw-orders',
+   svc:'FlowerOrdersService.create',
+   desc:'주문이 두 건 생긴다. 출발 지점 주문(DEPARTURE)과 도착 지점 주문(ARRIVAL)이고, 둘 다 같은 이동을 가리킨다. 이동만 만들고 수량 예약은 하지 않는다.',
+   note:'주문 품목은 네 행이다. 출발 지점 주문과 도착 지점 주문이 같은 품목 스냅샷을 각각 갖는다. 두 주문의 inventory_stock_id 는 모두 출발사(부산지점) 재고 행을 가리킨다. 재고가 나가는 회사가 출발사이기 때문이다. 이동을 만들 때 reserveQuantityItems 를 false 로 넘기므로 예약은 2단계로 미뤄진다(flower-orders.service.ts:1125).',
+   ops:[
+    ins('FevFlowerOrders','FO-D',{order_id:'FO-D',order_no:'PO-2026-0002',company_id:'부산지점',consignment_type:'DEPARTURE',order_status:'ORDERED',inventory_transfer_id:'TR-1'}),
+    ins('FevFlowerOrders','FO-A',{order_id:'FO-A',order_no:'PO-2026-0002',company_id:'서울지점',consignment_type:'ARRIVAL',order_status:'ORDERED',inventory_transfer_id:'TR-1'}),
+    ins('FevFlowerOrderItems','FOI-D1',{flower_order_item_id:'FOI-D1',flower_order_id:'FO-D',line_no_snapshot:'1',item_code_snapshot:'A0100010',item_name_snapshot:'[조사용품] 현진시닝(300인분)',unit_snapshot:'BOX',quantity_snapshot:'2',inventory_stock_id:'ST-1'}),
+    ins('FevFlowerOrderItems','FOI-D2',{flower_order_item_id:'FOI-D2',flower_order_id:'FO-D',line_no_snapshot:'2',item_code_snapshot:'B0201001',item_name_snapshot:'근조기',unit_snapshot:'EA',quantity_snapshot:'3',inventory_stock_id:'ST-2'}),
+    ins('FevFlowerOrderItems','FOI-A1',{flower_order_item_id:'FOI-A1',flower_order_id:'FO-A',line_no_snapshot:'1',item_code_snapshot:'A0100010',item_name_snapshot:'[조사용품] 현진시닝(300인분)',unit_snapshot:'BOX',quantity_snapshot:'2',inventory_stock_id:'ST-1'}),
+    ins('FevFlowerOrderItems','FOI-A2',{flower_order_item_id:'FOI-A2',flower_order_id:'FO-A',line_no_snapshot:'2',item_code_snapshot:'B0201001',item_name_snapshot:'근조기',unit_snapshot:'EA',quantity_snapshot:'3',inventory_stock_id:'ST-2'}),
+    ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'TRANSFER',source_company_id:'부산지점',destination_company_id:'서울지점',status:'PREPARING',issue_id:'null',receipt_id:'null'}),
+    ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'}),
+    ins('InvTransferItems','TI-2',{transfer_item_id:'TI-2',transfer_id:'TR-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',requested_qty:'3'})
+   ]},
+  {no:'2', nm:'상품 준비', who:'출발 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/confirm',
+   svc:'FlowerOrdersService.confirm → InventoryTransferService.reserveQuantityItemsInTransaction',
+   desc:'출발 지점 주문의 상태가 바뀌고 출발사 조사용품 재고가 예약된다. qty 는 그대로이고 reserved_qty 만 오른다.',
+   note:'비탁송 2단계와 같은 조건을 쓴다. 근조기 재고 행은 qty 가 0이라 예약 조건에 걸린다. 근조기가 이동 품목이 되는 경로는 아직 정해지지 않았다.',
+   ops:[
+    upd('FevFlowerOrders','FO-D',{order_status:'CONFIRMED'}),
+    upd('InventoryStocks','ST-1',{reserved_qty:'2'})
+   ]},
+  {no:'3', nm:'상차 품목 확인', who:'출발 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/item-verifications',
+   svc:'FlowerOrdersService.verifyItems → InventoryTransferService.reserveBarcode',
+   desc:'실을 조사용품 바코드를 스캔한다. 유닛이 RESERVED 로 바뀌고 이동 품목과 연결된다.',
+   ops:[
+    ins('InvTransferItemUnits','TU-1',{id:'TU-1',transfer_item_id:'TI-1',inventory_unit_id:'U-1',unloaded_at:'null'}),
+    ins('InvTransferItemUnits','TU-2',{id:'TU-2',transfer_item_id:'TI-1',inventory_unit_id:'U-2',unloaded_at:'null'}),
+    upd('InventoryUnits','U-1',{status:'RESERVED'}),
+    upd('InventoryUnits','U-2',{status:'RESERVED'})
+   ]},
+  {no:'4', nm:'상차', who:'출발 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/ship',
+   svc:'FlowerOrdersService.ship → InventoryTransferService.loadTransfer',
+   desc:'부산에서 재고가 나간다. 출고 전표를 남긴다. 다른 회사로 가는 것이므로 issue_type은 TRANSFER다.',
+   note:'CONSUME이 아니라 TRANSFER인 것이 중요하다. 사용수량은 CONSUME만 세므로, 회사 사이 이동이 사용량으로 잡히지 않는다. 부산의 근조기 잔여수량이 줄지 않는 이유가 이것이다.',
+   ops:[
+    upd('FevFlowerOrders','FO-D',{order_status:'DELIVERING'}),
+    ins('InventoryIssues','ISS-1',{issue_id:'ISS-1',company_id:'부산지점',issue_type:'TRANSFER',status:'COMPLETED',issued_at:'2026-08-20 09:30'}),
+    ins('InventoryIssueItems','II-1',{issue_item_id:'II-1',issue_id:'ISS-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    ins('InventoryIssueItems','II-2',{issue_item_id:'II-2',issue_id:'ISS-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
+    upd('InventoryUnits','U-1',{status:'IN_TRANSIT',last_shipment_id:'ISS-1'}),
+    upd('InventoryUnits','U-2',{status:'IN_TRANSIT',last_shipment_id:'ISS-1'}),
+    upd('InventoryStocks','ST-1',{qty:'3',reserved_qty:'0'}),
+    upd('InvTransfers','TR-1',{status:'IN_TRANSIT',issue_id:'ISS-1'})
+   ]},
+  {no:'5', nm:'하차', who:'도착 지점 담당자', http:'POST .../unload-barcodes  ·  PATCH .../complete',
+   svc:'InventoryTransferService.scanUnloadBarcode → completeUnload',
+   desc:'서울로 재고가 들어온다. 입고 전표를 남기고 도착사 재고 수량이 늘어난다. 유닛은 서울의 재고가 된다.',
+   todo:'Task 6. 지금은 유닛의 소유 회사만 도착사로 옮기고 상태를 IN_STOCK 이 아니라 CONSUMED 로 둔다(inventory-transfer.service.ts:588). 입고 전표를 만들지 않고 도착사 수량도 늘리지 않아, 부산에서 빠진 만큼 서울에서 채워지지 않는다. 이동할수록 전사 합계가 준다.',
+   ops:[
+    ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'COMPLETED',receipt_dt:'2026-08-20 14:05'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    ins('InventoryReceiptItems','RI-2',{receipt_item_id:'RI-2',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
+    upd('InventoryUnits','U-1',{company_id:'서울지점',status:'IN_STOCK'}),
+    upd('InventoryUnits','U-2',{company_id:'서울지점',status:'IN_STOCK'}),
+    upd('InventoryStocks','ST-3',{qty:'2'}),
+    upd('InvTransfers','TR-1',{status:'COMPLETED',receipt_id:'RCP-1'}),
+    upd('InvTransferItemUnits','TU-1',{unloaded_at:'2026-08-20 14:05'}),
+    upd('InvTransferItemUnits','TU-2',{unloaded_at:'2026-08-20 14:05'}),
+    upd('FevFlowerOrders','FO-A',{order_status:'CONFIRMED'})
+   ]},
+  {no:'6', nm:'배송', who:'도착 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/ship',
+   svc:'FlowerOrdersService.ship',
+   desc:'서울에서 장례식장으로 나간다. 여기서부터는 비탁송의 4단계와 완전히 같다.',
+   note:'도착 지점이 다른 지점과 같은 상태를 거친다. 받으면 입고, 내보내면 출고다. 이번 CONSUME 전표가 서울의 근조기 사용수량 3을 만든다.',
+   todo:'Task 9. 비탁송 4단계와 같다. 지금은 출고 전표를 만들지 않는다.',
+   derived:[['서울 근조기 기준수량','10'],['서울 근조기 사용수량','0 → 3'],['서울 근조기 잔여수량(현재고)','10 → 7']],
+   ops:[
+    upd('FevFlowerOrders','FO-A',{order_status:'DELIVERING'}),
+    ins('InventoryIssues','ISS-2',{issue_id:'ISS-2',company_id:'서울지점',issue_type:'CONSUME',status:'COMPLETED',issued_at:'2026-08-20 15:40'}),
+    ins('InventoryIssueItems','II-3',{issue_item_id:'II-3',issue_id:'ISS-2',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    ins('InventoryIssueItems','II-4',{issue_item_id:'II-4',issue_id:'ISS-2',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
+    upd('InventoryUnits','U-1',{status:'CONSUMED',last_shipment_id:'ISS-2'}),
+    upd('InventoryUnits','U-2',{status:'CONSUMED',last_shipment_id:'ISS-2'}),
+    upd('InventoryStocks','ST-3',{qty:'0'})
+   ]},
+  {no:'7', nm:'배송 완료', who:'도착 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/deliver',
+   svc:'FlowerOrdersService.deliver',
+   desc:'두 주문이 함께 완료된다. 재고 차감은 6단계에서 끝났다.',
+   ops:[
+    upd('FevFlowerOrders','FO-A',{order_status:'DELIVERED'}),
+    upd('FevFlowerOrders','FO-D',{order_status:'DELIVERED'})
+   ]}
+ ]
+};
+
+var FLOW_C = {
+ name:'물류센터 입고',
+ desc:'물류센터에서 지점으로 조사용품이 온다. 지점은 들어올 수량과 바코드를 미리 보고 받은 물건과 대조한다. 물류센터를 회사로 등록하고 ERP 발송 내역을 재고이동으로 적재하는 것이 전제다.',
+ scen:'<h3>입고 내용</h3><div class="meta">물류센터에서 <b>서울지점</b>으로 조사용품이 온다. ERP 전표번호는 <b>ERP-12345</b>다.<br>'
+  +'물류센터를 <b>Company 1행</b>으로 등록하고 company_type 에 물류센터용 값을 넣는다. ERP 코드는 legacy_bp_code 에 담는다.<br>'
+  +'재고 쪽에 추가되는 것은 InvTransfers.erp_doc_no 컬럼 하나다. 같은 전표를 두 번 받아도 이 컬럼으로 걸러진다.</div>'
+  +'<div class="cmp"><div class="cmpt">지금 동작과의 차이</div><table><thead><tr><th></th><th>지금</th><th>이 탭이 그리는 모습</th></tr></thead><tbody>'
+  +'<tr><td>물류센터 발송 시</td><td>우리 DB에 아무 행도 생기지 않는다</td><td>이동 1행, 품목 1행, 유닛 2행이 생긴다</td></tr>'
+  +'<tr><td>지점이 미리 아는 것</td><td>없다. 물건이 와야 안다</td><td>들어올 수량과 바코드</td></tr>'
+  +'<tr><td>스캔 판정</td><td>예정이 없어 전부 예정 밖으로 나온다</td><td>예정과 대조해 초과를 가른다</td></tr>'
+  +'<tr><td>입고 전표 유형</td><td class="mono">EXTERNAL</td><td class="mono">TRANSFER</td></tr>'
+  +'<tr><td>유닛이 생기는 시점</td><td>스캔한 뒤. 바로 IN_STOCK</td><td>발송 시점. 먼저 IN_TRANSIT</td></tr>'
+  +'<tr><td>화면</td><td colspan="2">같다. 입고 스캔 세션 하나를 쓴다</td></tr>'
+  +'</tbody></table></div>'
+  +'<table><thead><tr><th>품목코드</th><th>품목명</th><th>재고유형</th><th>단위</th><th>수량</th><th>바코드</th></tr></thead><tbody>'
+  +'<tr><td class="mono">A0100010</td><td>[조사용품] 현진시닝(300인분)</td><td class="mono">FUNERAL_SUPPLIES</td><td>BOX</td><td>2</td><td class="mono">BC-2001, BC-2002</td></tr>'
+  +'</tbody></table>',
+ base:[
+  ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'0',reserved_qty:'0',base_qty:'null'}]
+ ],
+ steps:[
+  {no:'1', nm:'ERP 발송 내역 적재', who:'배치 또는 ERP 호출', http:'정해지지 않음',
+   svc:'ERP 연동 처리',
+   desc:'ERP의 재고이동 데이터를 읽어 우리 이동 행을 만든다. 상차는 ERP가 이미 했으므로 status 를 PREPARING 이 아니라 IN_TRANSIT 으로 바로 만든다.',
+   note:'유닛을 IN_TRANSIT 으로 미리 만드는 것이 요점이다. 이 행들이 있어야 지점이 어떤 바코드가 오는지 볼 수 있다. 담을 자리는 탁송 상차가 쓰는 구조와 같아서 새로 만들 것이 없다.',
+   todo:'적재 경로가 정해지지 않았다. ERP가 우리 테이블에 넣을지, 우리가 API를 열지, 우리가 ERP DB를 읽을지가 미정이다. 지금은 이 단계가 없어 물류센터 발송 시 우리 DB에 아무 행도 생기지 않는다.',
+   ops:[
+    ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'TRANSFER',source_company_id:'물류센터',destination_company_id:'서울지점',status:'IN_TRANSIT',issue_id:'null',receipt_id:'null',erp_doc_no:'ERP-12345'}),
+    ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'}),
+    ins('InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-2001',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_shipment_id:'null'}),
+    ins('InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-2002',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_shipment_id:'null'}),
+    ins('InvTransferItemUnits','TU-1',{id:'TU-1',transfer_item_id:'TI-1',inventory_unit_id:'U-1',unloaded_at:'null'}),
+    ins('InvTransferItemUnits','TU-2',{id:'TU-2',transfer_item_id:'TI-1',inventory_unit_id:'U-2',unloaded_at:'null'})
+   ]},
+  {no:'2', nm:'지점이 예정 확인', who:'지점 담당자', http:'GET /v1/fsms/inventory/scan-sessions/:id/receipt',
+   svc:'InventoryScanService.getReceipt',
+   desc:'입고 화면에 들어올 수량과 바코드가 보인다. 재고 테이블은 바뀌지 않는다. 조회만 한다.',
+   note:'수량(plannedQty)은 지금 코드로 그대로 나온다. loadBaselineTransfers 가 도착사 기준 IN_TRANSIT 이동을 찾기 때문이다(inventory-scan.service.ts:93).',
+   todo:'예정 바코드 목록이 응답에 없다. loadBaselineTransfers 가 items 만 include 하고 InvTransferItemUnits 를 타지 않는다. 바코드 대조를 켜는 gateOn 조건도 실사 세션으로 제한돼 있어(:191) 입고 세션에서는 꺼져 있다.',
+   ops:[]},
+  {no:'3', nm:'입고 스캔', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions  ·  POST .../:id/scan',
+   svc:'InventoryScanService.start → scan',
+   desc:'입고 세션을 열고 받은 바코드를 찍는다. 스캔 1건이 이벤트 행으로 쌓이고 재고 테이블은 아직 바뀌지 않는다.',
+   note:'화환 탁송 하차(scanUnloadBarcode)가 아니라 입고 스캔 세션을 탄다. loadBaselineTransfers 가 플라워 주문이 붙지 않은 이동만 찾으므로 물류센터 이동이 여기에 걸린다. 같은 판정을 부작용 없이 미리 보는 GET .../lookup 이 따로 있고, 그쪽은 행을 만들지 않는다.',
+   todo:'전표 유형만 다르다. 1단계 이동이 없으면 이 전표가 TRANSFER 가 아니라 EXTERNAL 로 만들어진다. 지금이 그 상태다.',
+   ops:[
+    ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'IN_PROGRESS',receipt_dt:'2026-08-20 10:20'}),
+    ins('InventoryScanSessions','SS-1',{scan_session_id:'SS-1',session_type:'RECEIVING',company_id:'서울지점',inventory_type:'FUNERAL_SUPPLIES',status:'IN_PROGRESS',receipt_id:'RCP-1'}),
+    ins('InventoryScanEvents','EV-1',{scan_event_id:'EV-1',scan_session_id:'SS-1',barcode:'BC-2001',item_cd:'A0100010',result_code:'NORMAL',voided:'false'}),
+    ins('InventoryScanEvents','EV-2',{scan_event_id:'EV-2',scan_session_id:'SS-1',barcode:'BC-2002',item_cd:'A0100010',result_code:'NORMAL',voided:'false'})
+   ]},
+  {no:'4', nm:'입고 완료', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions/:id/complete',
+   svc:'InventoryScanService.complete',
+   desc:'미리 만들어 둔 유닛이 서울지점 재고가 되고 입고 품목과 재고 수량이 채워진다. 이동도 함께 수령 처리된다.',
+   note:'유닛을 새로 만드는 것이 아니라 이미 있는 것을 넘겨받는 형태다. 소유 회사가 물류센터에서 서울지점으로, 상태가 IN_TRANSIT 에서 IN_STOCK 으로 바뀐다.',
+   todo:'두 가지가 미구현이다. 첫째, complete 의 중복 검사가 companyId=받는 지점 + status=IN_STOCK 으로만 보므로(:647) 물류센터 소유 IN_TRANSIT 유닛을 찾지 못하고 같은 바코드로 유닛을 하나 더 만든다. 둘째, InventoryStocks.qty 를 건드리지 않는다(:617). 수량은 나중에 실사가 덮어쓸 때 맞춰지므로 그 전까지 유닛 수와 qty 가 어긋난다.',
+   ops:[
+    upd('InventoryUnits','U-1',{company_id:'서울지점',status:'IN_STOCK'}),
+    upd('InventoryUnits','U-2',{company_id:'서울지점',status:'IN_STOCK'}),
+    upd('InvTransferItemUnits','TU-1',{unloaded_at:'2026-08-20 10:30'}),
+    upd('InvTransferItemUnits','TU-2',{unloaded_at:'2026-08-20 10:30'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    upd('InventoryStocks','ST-1',{qty:'2'}),
+    upd('InventoryReceipts','RCP-1',{status:'COMPLETED'}),
+    upd('InventoryScanSessions','SS-1',{status:'COMPLETED'}),
+    upd('InvTransfers','TR-1',{status:'COMPLETED',receipt_id:'RCP-1'})
+   ]}
+ ]
+};
+
+var FLOW_D = {
+ name:'재고 실사 (조사용품)',
+ desc:'장부 수량과 실제 물건이 맞는지 대조한다. 입고와 같은 QR 스캔 화면을 쓰고 session_type 만 AUDIT 으로 다르다.',
+ scen:'<h3>실사 내용</h3><div class="meta"><b>서울지점</b>이 조사용품 재고를 실사한다.<br>'
+  +'장부에는 3개로 되어 있는데 실제로는 2개만 있는 상황이다. 실사가 그 차이를 드러낸다.<br>'
+  +'<b>이 화면은 조사용품 전용이다.</b> start 가 FUNERAL_SUPPLIES 만 허용한다. 근조기ㆍ축기는 이 세션을 쓰지 않고 6번 탭의 수동 실사를 쓴다.</div>'
+  +'<table><thead><tr><th>품목코드</th><th>품목명</th><th>장부 수량</th><th>실제 수량</th><th>바코드</th></tr></thead><tbody>'
+  +'<tr><td class="mono">A0100010</td><td>[조사용품] 현진시닝(300인분)</td><td>3</td><td>2</td><td class="mono">BC-3001, BC-3002 (BC-3003 은 없음)</td></tr>'
+  +'</tbody></table>',
+ base:[
+  ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'3',reserved_qty:'0',base_qty:'null'}],
+  ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-3001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
+  ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-3002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
+  ['InventoryUnits','U-3',{unit_id:'U-3',barcode:'BC-3003',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+ ],
+ steps:[
+  {no:'1', nm:'실사 세션 시작', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions',
+   svc:'InventoryScanService.start (sessionType=AUDIT)',
+   desc:'실사 1건과 품목 행이 생긴다. 이 시점의 재고 수량이 book_qty 로 복사된다.',
+   note:'입고 세션과 같은 API 를 쓰고 sessionType 만 다르다. 입고는 InventoryReceipts 를 만들고 세션의 receipt_id 에 연결하는데, 실사는 InventoryAudits 를 만들고 audit_id 에 연결한다. 세션 테이블은 하나다.',
+   ops:[
+    ins('InventoryAudits','AUD-1',{inventory_audit_id:'AUD-1',company_id:'서울지점',inventory_type:'FUNERAL_SUPPLIES',status:'IN_PROGRESS',audit_dt:'2026-08-20 14:00'}),
+    ins('InventoryAuditItems','AI-1',{inventory_audit_item_id:'AI-1',inventory_audit_id:'AUD-1',item_cd:'A0100010',book_qty:'3',actual_qty:'null',diff_qty:'null'}),
+    ins('InventoryScanSessions','SS-1',{scan_session_id:'SS-1',session_type:'AUDIT',company_id:'서울지점',inventory_type:'FUNERAL_SUPPLIES',status:'IN_PROGRESS',receipt_id:'null'})
+   ]},
+  {no:'2', nm:'바코드 스캔', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions/:id/scan',
+   svc:'InventoryScanService.scan',
+   desc:'창고에 실제로 있는 물건의 바코드를 찍는다. 여기서는 BC-3001 과 BC-3002 만 찍힌다. BC-3003 은 물건이 없어 못 찍는다.',
+   note:'스캔 1건이 이벤트 행으로 쌓인다. 실사 품목의 actual_qty 는 아직 비어 있고 완료 시점에 이벤트를 집계해 채운다.',
+   ops:[
+    ins('InventoryScanEvents','EV-1',{scan_event_id:'EV-1',scan_session_id:'SS-1',barcode:'BC-3001',item_cd:'A0100010',result_code:'NORMAL',voided:'false'}),
+    ins('InventoryScanEvents','EV-2',{scan_event_id:'EV-2',scan_session_id:'SS-1',barcode:'BC-3002',item_cd:'A0100010',result_code:'NORMAL',voided:'false'})
+   ]},
+  {no:'3', nm:'실사 완료', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions/:id/complete',
+   svc:'InventoryScanService.complete (AUDIT 분기)',
+   desc:'찍힌 수를 실제 수량으로 기록하고 차이를 남긴다. 조사용품은 재고 수량을 실사 수량으로 덮어쓴다.',
+   note:'조사용품만 파괴적 덮어쓰기다(qty = actual_qty). 없어진 BC-3003 의 유닛 행은 지우지 않는다. 수량만 2로 맞춘다. 반대로 장부에 없던 바코드를 찍으면 유닛 행을 새로 만든다.',
+   ops:[
+    upd('InventoryAuditItems','AI-1',{actual_qty:'2',diff_qty:'-1'}),
+    upd('InventoryStocks','ST-1',{qty:'2'}),
+    upd('InventoryAudits','AUD-1',{status:'COMPLETED'}),
+    upd('InventoryScanSessions','SS-1',{status:'COMPLETED'})
+   ]}
+ ]
+};
+
+var FLOW_E = {
+ name:'근조기ㆍ축기 (수량 재고)',
+ desc:'근조기와 축기는 바코드도 유닛 행도 없다. 그 점만 조사용품과 다르고, 현재고를 읽는 자리는 같다. 두 유형 모두 InventoryStocks.qty 가 현재고이고 qty - reserved_qty 가 가용재고다.',
+ scen:'<h3>계산식</h3><div class="meta">'
+  +'<b>현재고</b> = <code>InventoryStocks.qty</code>. 조사용품과 같은 컬럼을 같은 뜻으로 읽는다<br>'
+  +'<b>가용재고</b> = <code>qty - reserved_qty</code>. 이것도 같다<br>'
+  +'<b>기준수량</b> = <code>base_qty</code>. 이 품목을 몇 개 갖고 있어야 하는지를 정한 목표치다. 현재고 계산에 들어가지 않는다<br>'
+  +'<b>사용수량</b> = 확정 출고 합 - 확정 반납입고 합. 얼마나 나갔는지를 보여주는 기록값이고 현재고를 만들지 않는다<br>'
+  +'<b>재고편차</b> = 실사수량 - 실사 시작 시점의 현재고. 실사 품목 행에 저장된다'
+  +'</div>'
+  +'<div class="cmp"><div class="cmpt">조사용품과의 차이</div><table><thead><tr><th></th><th>조사용품</th><th>근조기ㆍ축기</th></tr></thead><tbody>'
+  +'<tr><td><b>현재고</b></td><td colspan="2"><b>같다.</b> <code>InventoryStocks.qty</code></td></tr>'
+  +'<tr><td><b>가용재고</b></td><td colspan="2"><b>같다.</b> <code>qty - reserved_qty</code></td></tr>'
+  +'<tr><td>바코드 낱개 추적</td><td>한다. InventoryUnits 1행</td><td>하지 않는다. 유닛 행 없음</td></tr>'
+  +'<tr><td>입고</td><td>QR 스캔 세션</td><td>반납 입고 팝업에 수량 직접 입력</td></tr>'
+  +'<tr><td>실사</td><td>QR 스캔으로 수량 집계</td><td>수동 실사에 수량 직접 입력</td></tr>'
+  +'<tr><td>기준 대비</td><td><code>min_qty</code>(안전 재고)와 비교</td><td><code>base_qty</code>(기준수량)와 비교</td></tr>'
+  +'</tbody></table></div>'
+  +'<h3>이 흐름의 숫자</h3><table><thead><tr><th>단계</th><th>qty (현재고)</th><th>기준</th><th>사용</th><th>실사</th><th>편차</th></tr></thead><tbody>'
+  +'<tr><td>1. 기준수량 설정</td><td>10</td><td>10</td><td>0</td><td>-</td><td>-</td></tr>'
+  +'<tr><td>2. 출고 7</td><td>3</td><td>10</td><td>7</td><td>-</td><td>-</td></tr>'
+  +'<tr><td>3. 반납 입고 2</td><td>5</td><td>10</td><td>5</td><td>-</td><td>-</td></tr>'
+  +'<tr><td>5. 실사 완료</td><td>3</td><td>10</td><td>5</td><td>3</td><td class="mono">-2</td></tr>'
+  +'</tbody></table>',
+ base:[
+  ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'10',reserved_qty:'0',base_qty:'null'}]
+ ],
+ steps:[
+  {no:'1', nm:'기준수량 설정', who:'본사 관리자', http:'PATCH /v1/fsms/inventory/ceremonial-flags/stocks/:id',
+   svc:'CeremonialFlagInventoryService.updateBaseQty',
+   desc:'이 지점이 이 품목을 몇 개 갖고 있어야 하는지를 정한다. 컬럼을 바꾸고 변경 이력을 함께 남긴다. 현재고(qty)는 건드리지 않는다.',
+   note:'본사 관리자만 할 수 있다. 이력에 이전 값과 새 값과 사유가 남는다. 기준수량은 목표치이므로 현재고와 다를 수 있고, 그 차이가 채워야 할 양이다.',
+   derived:[['현재고(qty)','10'],['기준수량','비어 있음 → 10'],['사용수량','0']],
+   ops:[
+    upd('InventoryStocks','ST-1',{base_qty:'10'}),
+    ins('InventoryBaseQtyHistory','BH-1',{base_qty_history_id:'BH-1',inventory_stock_id:'ST-1',item_cd:'B0201001',old_qty:'null',new_qty:'10',reason:'지점 표준 배치량 반영'})
+   ]},
+  {no:'2', nm:'출고 7', who:'지점 담당자', http:'행사 진행에 따라',
+   svc:'출고 경로',
+   desc:'근조기 7개가 나간다. 현재고가 7 줄고, 나간 사실이 출고 전표로 남는다. 외부로 나가는 것이므로 issue_type 은 CONSUME 이다.',
+   note:'회사 사이 이동(TRANSFER)은 사용수량에 세지 않는다. 다른 지점으로 보낸 것은 회사 밖으로 나간 것이 아니기 때문이다. 수량 차감은 이동이든 소모든 똑같이 일어난다.',
+   todo:'Task 9. CONSUME 전표를 만드는 경로가 없다. 출고 전표를 만드는 자리는 상차 하나뿐이고 그것은 TRANSFER 다(inventory-transfer.service.ts:509). 사용수량을 세는 원천은 InventoryIssues 로 이미 옮겼다(ceremonial-flag-inventory.service.ts:94).',
+   derived:[['현재고(qty)','10 → 3'],['기준수량','10'],['사용수량','0 → 7']],
+   ops:[
+    ins('InventoryIssues','ISS-1',{issue_id:'ISS-1',company_id:'서울지점',issue_type:'CONSUME',status:'COMPLETED',issued_at:'2026-08-20 09:10'}),
+    ins('InventoryIssueItems','II-1',{issue_item_id:'II-1',issue_id:'ISS-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'7'}),
+    upd('InventoryStocks','ST-1',{qty:'3'})
+   ]},
+  {no:'3', nm:'반납 입고 2', who:'지점 담당자', http:'POST /v1/fsms/inventory/ceremonial-flags/receipts',
+   svc:'CeremonialFlagInventoryService.createReturnReceipt',
+   desc:'나갔던 근조기 2개가 돌아온다. QR 없이 수량을 직접 입력한다. 완료 상태의 입고 전표가 바로 만들어지고 현재고가 2 는다.',
+   note:'반납 합산은 receipt_type=RETURN 전표만 센다. 사용수량이 7에서 5로 줄고 현재고가 3에서 5로 는다.',
+   todo:'지금은 입고 전표만 만들고 InventoryStocks.qty 를 건드리지 않는다. 현재고를 qty 하나로 읽으려면 이 자리에 수량 증가가 붙어야 한다.',
+   derived:[['현재고(qty)','3 → 5'],['기준수량','10'],['사용수량','7 → 5']],
+   ops:[
+    ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'RETURN',status:'COMPLETED',receipt_dt:'2026-08-20 13:00'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'2'}),
+    upd('InventoryStocks','ST-1',{qty:'5'})
+   ]},
+  {no:'4', nm:'실사 시작', who:'지점 담당자', http:'POST /v1/fsms/inventory/audits',
+   svc:'InventoryAuditService.create',
+   desc:'실사 1건과 품목 행이 생긴다. 이 시점의 현재고가 장부 수량으로 복사된다. QR 스캔 세션을 쓰지 않는다.',
+   note:'장부 수량(book_qty)에 InventoryStocks.qty 가 복사된다. 조사용품 실사와 같은 코드이고 같은 컬럼을 읽는다.',
+   derived:[['현재고(qty)','5'],['기준수량','10'],['사용수량','5'],['실사 품목의 book_qty','5']],
+   ops:[
+    ins('InventoryAudits','AUD-1',{inventory_audit_id:'AUD-1',company_id:'서울지점',inventory_type:'CONDOLENCE_FLAG',status:'IN_PROGRESS',audit_dt:'2026-08-20 15:00'}),
+    ins('InventoryAuditItems','AI-1',{inventory_audit_item_id:'AI-1',inventory_audit_id:'AUD-1',item_cd:'B0201001',book_qty:'5',actual_qty:'null',diff_qty:'null'})
+   ]},
+  {no:'5', nm:'실사 수량 입력과 완료', who:'지점 담당자', http:'PATCH /v1/fsms/inventory/audits/:id/items  ·  PATCH .../complete',
+   svc:'InventoryAuditService.saveItems → complete',
+   desc:'실제로 세어 3개를 입력한다. 편차는 실사수량에서 장부 수량을 뺀 -2 이고, 현재고가 실사값 3으로 맞춰진다.',
+   note:'조사용품 실사와 같은 처리다. 없어진 2개가 편차로 드러나고 현재고가 실물에 맞춰진다. 기준수량 10과 현재고 3의 차이 7은 채워야 할 양이다.',
+   todo:'지금은 근조기·축기에서 qty 를 덮지 않는다(inventory-audit.service.ts:145). 조사용품만 덮도록 유형 분기가 걸려 있어 그 분기를 지워야 한다.',
+   derived:[['현재고(qty)','5 → 3'],['기준수량','10'],['사용수량','5'],['실사수량','3'],['재고편차','-2'],['재고상태','누락(SHORT)']],
+   ops:[
+    upd('InventoryAuditItems','AI-1',{actual_qty:'3',diff_qty:'-2'}),
+    upd('InventoryStocks','ST-1',{qty:'3'}),
+    upd('InventoryAudits','AUD-1',{status:'COMPLETED'})
+   ]}
+ ]
+};
+
+var FLOWS=[FLOW_A,FLOW_B,FLOW_C,FLOW_D,FLOW_E], fi=0, si=0;
+var reorder=false;
+function $(id){return document.getElementById(id);}
+
+function build(flow,upto){
+ var st={}, mark={};
+ flow.base.forEach(function(b){ st[b[0]]=st[b[0]]||[]; st[b[0]].push({k:b[1],d:Object.assign({},b[2])}); });
+ for(var s=0;s<=upto;s++){
+  flow.steps[s].ops.forEach(function(o){
+   st[o.t]=st[o.t]||[];
+   var row=null;
+   for(var i=0;i<st[o.t].length;i++){ if(st[o.t][i].k===o.k) row=st[o.t][i]; }
+   if(o.op==='I'){ if(!row){ row={k:o.k,d:Object.assign({},o.d)}; st[o.t].push(row);} }
+   else if(row){ for(var c in o.d) row.d[c]=o.d[c]; }
+   if(s===upto){
+    mark[o.t]=mark[o.t]||{};
+    mark[o.t][o.k]=mark[o.t][o.k]||{op:o.op,cells:{}};
+    if(o.op==='I') mark[o.t][o.k].op='I';
+    for(var c2 in o.d) mark[o.t][o.k].cells[c2]=1;
+   }
+  });
+ }
+ return {st:st,mark:mark};
+}
+
+function render(){
+ var flow=FLOWS[fi];
+ $('tabs').innerHTML=FLOWS.map(function(f,i){return '<button class="tab'+(i===fi?' on':'')+'" data-f="'+i+'">'+f.name+'</button>';}).join('');
+ $('scen').innerHTML=flow.scen;
+ $('steps').innerHTML=flow.steps.map(function(s,i){
+  return '<div class="step'+(i===si?' on':'')+'" data-s="'+i+'"><div class="no">'+s.no+'단계</div><div class="nm">'+s.nm+'</div>'+(s.todo?'<div class="stodo">미구현</div>':'')+'</div>';}).join('');
+ var s=flow.steps[si];
+ $('trig').innerHTML='<div class="who">'+s.who+'</div><div class="what">'+s.nm+'</div>'
+  +'<div><code>'+s.http+'</code></div><div style="margin-top:6px"><code>'+s.svc+'</code></div>'
+  +'<div class="desc">'+s.desc+'</div>'
+  +(s.derived?'<div class="drv"><div class="drvt">이 시점의 파생값</div>'+s.derived.map(function(d){return '<span class="drvi"><b>'+d[0]+'</b>'+d[1]+'</span>';}).join('')+'</div>':'')
+  +(s.todo?'<div class="todo"><b>아직 구현되지 않았다</b>'+s.todo+'</div>':'');
+ $('note').innerHTML=s.note?'<div class="note">'+s.note+'</div>':'';
+ var r=build(flow,si);
+ var GC={'플라워':'p','재고 이관':'t','재고':'i'};
+ var GP={'플라워':'FevFlowerOrder*','재고 이관':'InvTransfer*','재고':'Inventory*'};
+ var order=[]; for(var t0 in SCHEMA) order.push(t0);
+ var changed=order.filter(function(t){return r.mark[t];});
+ function chip(t){
+  var mk=r.mark[t],ni=0,nu=0;
+  for(var k in mk){ if(mk[k].op==='I') ni++; else nu++; }
+  var d=[]; if(ni) d.push('새 행 '+ni); if(nu) d.push('변경 '+nu);
+  return '<button class="chip chip-'+GC[SCHEMA[t].grp]+'" data-t="'+t+'">'+t+' <em>'+d.join(' · ')+'</em></button>';
+ }
+ (function(){
+  var rowsHtml='';
+  for(var si2=0; si2<flow.steps.length; si2++){
+   var rr=build(flow,si2), parts=[];
+   for(var t2 in SCHEMA){
+    var mk=rr.mark[t2]; if(!mk) continue;
+    var ni=0,nu=0; for(var k2 in mk){ if(mk[k2].op==='I') ni++; else nu++; }
+    var d=[]; if(ni) d.push('+'+ni); if(nu) d.push('~'+nu);
+    parts.push('<span class="ot ot-'+GC[SCHEMA[t2].grp]+'">'+t2+' '+d.join(' ')+'</span>');
+   }
+   rowsHtml+='<tr class="'+(si2===si?'on':'')+'" data-s="'+si2+'">'
+    +'<td class="ostep">'+flow.steps[si2].no+'. '+flow.steps[si2].nm+(flow.steps[si2].todo?'<span class="otodo">미구현</span>':'')+'</td>'
+    +'<td class="owho">'+flow.steps[si2].who+'</td>'
+    +'<td>'+(parts.length?parts.join(''):'<span class="onone">바뀌는 행 없음</span>')+'</td></tr>';
+  }
+  $('ovw').innerHTML='<div class="ocap">전체 흐름. 줄을 누르면 그 단계로 이동한다</div>'
+   +'<table><thead><tr><th>단계</th><th>누가</th><th>바뀌는 테이블</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>';
+ })();
+ if(changed.length){
+  var byG={};
+  changed.forEach(function(t){ var g=SCHEMA[t].grp; (byG[g]=byG[g]||[]).push(t); });
+  $('sum').innerHTML='<div class="sl">이 단계에서 바뀐 테이블</div>'
+   +['플라워','재고 이관','재고'].filter(function(g){return byG[g];}).map(function(g){
+     return '<div class="srow"><span class="sg sg-'+GC[g]+'">'+g+'</span>'+byG[g].map(chip).join('')+'</div>';
+   }).join('');
+ } else {
+  $('sum').innerHTML='<div class="sl">이 단계에서는 아무 행도 만들어지거나 바뀌지 않는다.</div>';
+ }
+ var VCOUNT={};
+ order.forEach(function(t){(r.st[t]||[]).forEach(function(row){SCHEMA[t].cols.forEach(function(c){var v=row.d[c];if(v&&v!=='null'&&v!=='')VCOUNT[v]=(VCOUNT[v]||0)+1;});});});
+ function card(t,showGrp){
+  var rows=r.st[t]||[], m=r.mark[t]||{}, cols=SCHEMA[t].cols, g=SCHEMA[t].grp;
+  var h='<div id="tb-'+t+'" class="tbl tbl-'+GC[g]+(r.mark[t]?' hit':'')+(rows.length?'':' void')+'">'
+   +'<div class="hd"><span>'+t+(showGrp?'<span class="glab">'+g+'</span>':'')+' <span class="role">'+SCHEMA[t].role+'</span></span>'
+   +'<span class="db">'+rows.length+'행</span></div><table><thead><tr>';
+  cols.forEach(function(c){h+='<th>'+c+'</th>';});
+  if(SCHEMA[t].join) h+='<th class="jn">품목명 (PrdItem 조인)</th>';
+  h+='</tr></thead><tbody>';
+  if(!rows.length) h+='<tr><td class="none" colspan="'+(cols.length+(SCHEMA[t].join?1:0))+'">아직 행이 없다</td></tr>';
+  rows.forEach(function(row){
+   var mm=m[row.k], isNew=mm&&mm.op==='I';
+   h+='<tr class="'+(isNew?'new':'')+'">';
+   cols.forEach(function(c){
+    var ch=mm&&!isNew&&mm.cells[c], vv=(row.d[c]!==undefined?row.d[c]:'');
+    var link=(vv&&VCOUNT[vv]>1)?'<span class="idv" data-v="'+vv+'">'+vv+'</span>':vv;
+    h+='<td class="'+(ch?'chg':'')+'">'+link+'</td>';
+   });
+   if(SCHEMA[t].join) h+='<td class="jn">'+(ITEM_NAME[row.d.item_cd]||'')+'</td>';
+   h+='</tr>';
+  });
+  return h+'</tbody></table></div>';
+ }
+ var out='';
+ if(reorder){
+  var rest=order.filter(function(t){return !r.mark[t];});
+  out='<div class="flat">'+changed.concat(rest).map(function(t){return card(t,true);}).join('')+'</div>';
+ } else {
+  var lastG=null, lastS=null;
+  order.forEach(function(t){
+   var g=SCHEMA[t].grp;
+   var sb=SCHEMA[t].sub||null;
+   if(g!==lastG){
+    if(lastG!==null) out+='</div>';
+    lastG=g; lastS=null;
+    out+='<div class="gsec gsec-'+GC[g]+'"><div class="gh gh-'+GC[g]+'">'+g+' <span class="gpfx">'+GP[g]+'</span></div>';
+   }
+   if(sb!==lastS){ lastS=sb; if(sb) out+='<div class="sh sh-'+GC[g]+'">'+sb+'</div>'; }
+   out+=card(t,false);
+  });
+  if(lastG!==null) out+='</div>';
+ }
+ $('tables').innerHTML=out;
+}
+$('ovw').addEventListener('click',function(e){var tr=e.target.closest('tr[data-s]');if(!tr)return;si=parseInt(tr.getAttribute('data-s'),10);render();window.scrollTo({top:$('ovw').offsetTop-10,behavior:'smooth'});});
+$('tables').addEventListener('click',function(e){
+ var b=e.target.closest('.idv'); if(!b) return;
+ var v=b.getAttribute('data-v'), on=b.classList.contains('lit');
+ Array.prototype.forEach.call(document.querySelectorAll('.idv'),function(x){x.classList.remove('lit');});
+ if(!on) Array.prototype.forEach.call(document.querySelectorAll('.idv[data-v="'+v+'"]'),function(x){x.classList.add('lit');});
+});
+$('reo').addEventListener('change',function(e){reorder=e.target.checked;render();});
+$('sum').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;var el=document.getElementById('tb-'+b.dataset.t);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});});
+$('tabs').addEventListener('click',function(e){var b=e.target.closest('.tab');if(!b)return;fi=+b.dataset.f;si=0;render();});
+$('steps').addEventListener('click',function(e){var b=e.target.closest('.step');if(!b)return;si=+b.dataset.s;render();});
+render();
+</script>
+</body>
+</html>
