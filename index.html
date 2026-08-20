@@ -45,11 +45,12 @@ h2{font-size:17px;font-weight:600;margin:28px 0 10px}
 .gm-i{display:grid;grid-template-columns:auto 1fr 1fr;column-gap:16px;row-gap:2px;align-content:start}
 .gm-i .gmt{grid-column:1/-1}
 .gm-i .gms{grid-column:1;align-self:center;margin:0;white-space:nowrap}
-.erd .mermaid{display:flex;justify-content:center}
+.erd .mermaid,.cpt .mermaid{display:flex;justify-content:center}
+.cpt .mermaid{margin:0 0 16px}
 .mlg{display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim)}
 .mlg i{display:inline-block;width:13px;height:13px;border-radius:3px;border:1.5px solid;margin-right:7px;vertical-align:-2px}
 .mlg code{font-size:11.5px}
-.erd .mermaid svg{max-width:100%;height:auto}
+.erd .mermaid svg,.cpt .mermaid svg{max-width:100%;height:auto}
 /*SC*/
 .sc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
 .sc h3{font-size:14px;font-weight:600;margin:0 0 10px}
@@ -236,8 +237,10 @@ if(window.mermaid){
   var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
   mermaid.initialize({startOnLoad:true,securityLevel:"loose",theme:"base",flowchart:{curve:"basis",nodeSpacing:45,rankSpacing:70,padding:14},themeVariables:{fontFamily:"-apple-system,BlinkMacSystemFont,Apple SD Gothic Neo,sans-serif",fontSize:"13px",lineColor:"#8a8880",primaryTextColor:"#1b1b19"}});
 } else {
-  document.querySelector(".mermaid").style.display="none";
-  document.getElementById("mmfb").style.display="block";
+  document.querySelectorAll(".mermaid").forEach(function(el){
+    el.classList.remove("mermaid");
+    el.classList.add("cptpre");
+  });
 }
 </script>
 <h2>1. 개념</h2>
@@ -265,19 +268,44 @@ if(window.mermaid){
 
 <div class="cptq">헤더와 품목 행으로 나뉜 구조가 넷이다</div>
 <p>넷이 같은 구조다. 헤더 1행이 사건 1건이고 품목 행이 그 사건에 포함된 품목이다. 헤더에는 주체와 시각과 대상 회사가 있고, 품목 행에는 품목코드와 수량이 있다.</p>
-<pre class="cptpre">InventoryIssues   (전표 1행)  →  InventoryIssueItems   (품목 N행)
-InventoryReceipts (전표 1행)  →  InventoryReceiptItems (품목 N행)
-InvTransfers      (이동 1행)  →  InvTransferItems      (품목 N행)
-InventoryAudits   (실사 1행)  →  InventoryAuditItems   (품목 N행)</pre>
+<pre class="mermaid">flowchart LR
+  IS["InventoryIssues
+전표 1행"] -->|"1 : N"| ISI["InventoryIssueItems
+품목 N행"]
+  RC["InventoryReceipts
+전표 1행"] -->|"1 : N"| RCI["InventoryReceiptItems
+품목 N행"]
+  TR["InvTransfers
+이동 1행"] -->|"1 : N"| TRI["InvTransferItems
+품목 N행"]
+  AU["InventoryAudits
+실사 1행"] -->|"1 : N"| AUI["InventoryAuditItems
+품목 N행"]
+  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
+  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
+  class TR,TRI t
+  class IS,ISI,RC,RCI,AU,AUI i</pre>
 
 <div class="cptq">핵심 관계는 이동이 전표 두 건을 참조하는 것이다</div>
 <p>회사 사이 이동 1건은 출고 전표 1건과 입고 전표 1건을 만든다. 출발 회사에서 나간 사건과 도착 회사로 들어온 사건이 별개로 기록되고, <code>InvTransfers</code>가 두 전표를 참조한다.</p>
-<pre class="cptpre">부산지점                                                       서울지점
-   |                                                              |
-   | 상차                                                   하차   |
-   v                                                              v
-InventoryIssues  &lt;-- issue_id --  InvTransfers  -- receipt_id --&gt;  InventoryReceipts
- (부산에서 출고)                   (이동 지시)                       (서울에 입고)</pre>
+<pre class="mermaid">flowchart TD
+  TR["InvTransfers
+이동 지시"] -->|"issue_id"| IS
+  TR -->|"receipt_id"| RC
+  subgraph SE["서울지점"]
+    RC["InventoryReceipts
+하차 때 생성"]
+  end
+  subgraph BS["부산지점"]
+    IS["InventoryIssues
+상차 때 생성"]
+  end
+  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
+  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
+  class TR t
+  class IS,RC i
+  style BS fill:#FBFAF8,stroke:#c9c7c0,color:#3a3934
+  style SE fill:#FBFAF8,stroke:#c9c7c0,color:#3a3934</pre>
 
 <div class="cptq">보유 재고를 수량 단위와 개별 단위로 나눠 저장한다</div>
 <p>조사용품은 QR이 부착되어 있어 수량뿐 아니라 어느 바코드를 보유했는지까지 저장한다. 근조기ㆍ축기는 QR이 없어 수량만 저장한다. 그래서 조사용품에만 <code>InventoryUnits</code> 행이 존재한다.</p>
