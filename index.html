@@ -222,7 +222,7 @@ td.chg{background:var(--warnbg);color:var(--warn);font-weight:600}
   TRU -->|"inventory_unit_id"| UN
   SS -->|"1 : N"| SE
   SS -->|"receipt_id"| RC
-  UN -.->|"last_shipment_id (FK 없음)"| IS
+  UN -->|"last_issue_id"| IS
   classDef p fill:#EEEDFE,stroke:#7F77DD,stroke-width:1.5px,color:#26215C
   classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
   classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
@@ -301,7 +301,7 @@ InventoryIssues  &lt;-- issue_id --  InvTransfers  -- receipt_id --&gt;  Invento
 <table><thead><tr><th></th><th>입고 전표</th><th>출고 전표</th></tr></thead><tbody>
 <tr><td>상태</td><td>기본값 <span class="mono">IN_PROGRESS</span>. 스캔 진행 중에는 미완료 상태</td><td>기본값 <span class="mono">COMPLETED</span>. 생성 시점에 완료</td></tr>
 <tr><td>채번</td><td class="mono">receipt_no</td><td class="mono">issue_no</td></tr>
-<tr><td>연결 테이블</td><td class="mono">InventoryScanSessions.receipt_id</td><td class="mono">InventoryUnits.last_shipment_id</td></tr>
+<tr><td>연결 테이블</td><td class="mono">InventoryScanSessions.receipt_id</td><td class="mono">InventoryUnits.last_issue_id</td></tr>
 </tbody></table>
 <p>한 테이블로 통합하면 <span class="mono">IN_PROGRESS</span>가 출고 행에서 의미 없는 값이 되고, 채번도 유형별로 분리해야 한다. 스캔 세션은 입고에만 연결되고 출고에는 스캔 절차가 없다.</p>
 <p>전표를 분리한 결과로 기록 규칙이 단순해진다. <b>전표는 회사 하나를 기준으로 1건씩 생성된다.</b> 상대 회사가 우리 회사이면 2건, 아니면 1건이다.</p>
@@ -342,7 +342,7 @@ InventoryIssues  &lt;-- issue_id --  InvTransfers  -- receipt_id --&gt;  Invento
 <code>consignment_type</code> DEPARTURE / ARRIVAL / null(비탁송)<br>
 <code>InventoryScanEvents.result_code</code> NORMAL / EXCESS / UNPLANNED / UNKNOWN_ITEM / DUPLICATE
 <br><br>
-<b>현재고는 재고유형과 무관하게 <code>InventoryStocks.qty</code> 다.</b> 가용재고는 <code>qty - reserved_qty</code> 이고 이것도 두 유형이 같다. 근조기·축기의 <code>base_qty</code> 와 조사용품의 <code>min_qty</code>(화면 라벨 '안전 재고')는 둘 다 <b>몇 개 있어야 하는지를 정한 목표치</b>이고 현재고를 만들지 않는다. 모자라면 그만큼 채우는 방식이라 성격이 같다. 근조기·축기는 우리 화면이 판정해 <code>잔여 &lt; 기준</code>일 때 입고 버튼을 켜고, 조사용품은 물류센터가 판정해 보충한다. 커머스의 안전재고처럼 발주량을 따로 계산하거나 미달 경고를 내지 않는다. 두 컬럼을 하나로 합치는 것은 뒤로 미뤄 둔 과제다.<br><br><b>근조기ㆍ축기 사용수량</b>은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 <code>issue_type = 'CONSUME'</code> 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 <code>receipt_type = 'RETURN'</code> 전표만 센다. 옛 출고 테이블(<code>FsmsSupplyShipments</code>)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
+<b>현재고는 조사용품이 <code>InventoryStocks.qty</code>, 근조기ㆍ축기가 <code>base_qty - 사용수량</code>이다.</b> 근조기ㆍ축기 화면은 <code>qty</code> 를 읽지 않는다. 반면 이동 예약 검사는 두 유형과 무관하게 <code>qty - reserved_qty</code> 를 보므로(<code>inventory-transfer.service.ts:931</code>), <code>qty</code> 가 0인 근조기 재고 행은 예약이 통과하지 않는다. 근조기ㆍ축기의 <code>base_qty</code> 와 조사용품의 <code>min_qty</code>(화면 라벨 '안전 재고')는 둘 다 <b>몇 개 있어야 하는지를 정한 목표치</b>이고, 모자라면 그만큼 채우는 방식이라 성격이 같다. 다만 <code>base_qty</code> 는 목표치인 동시에 근조기ㆍ축기 현재고 계산의 기준값이다. 근조기·축기는 우리 화면이 판정해 <code>잔여 &lt; 기준</code>일 때 입고 버튼을 활성화하고, 조사용품은 물류센터가 판정해 보충한다. 커머스의 안전재고처럼 발주량을 따로 계산하거나 미달 경고를 내지 않는다. 두 컬럼을 하나로 합치는 것은 뒤로 미뤄 둔 과제다.<br><br><b>근조기ㆍ축기 사용수량</b>은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 <code>issue_type = 'CONSUME'</code> 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 완료된 입고 전표를 유형과 무관하게 전부 차감한다. RETURN 만 세도록 좁혀져 있지 않아 탁송 하차가 만드는 TRANSFER 입고 전표도 함께 차감된다. 옛 출고 테이블(<code>FsmsSupplyShipments</code>)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
 <br><br>
 <b>수량과 실물은 층이 다르다.</b> <code>InventoryStocks.qty</code> 가 품목별 현재고이고, <code>InventoryUnits</code> 는 조사용품 바코드 한 개가 한 행이다. 유닛은 그 수량 안의 어느 실물이 어디 있는지를 가리키는 것이지 별도의 재고 셈이 아니다. 두 값이 어긋나면 실사가 <code>qty</code> 를 실물에 맞춘다.
 <br><br>
@@ -357,7 +357,7 @@ var SCHEMA = {
  InvTransferItems:{grp:'재고 이관', join:1, role:'이동 품목. 재고유형이 품목마다 붙어 한 이동에 유형이 섞일 수 있다', cols:['transfer_item_id','transfer_id','item_cd','inventory_type','requested_qty']},
  InvTransferItemUnits:{grp:'재고 이관', role:'이동 품목과 실물 바코드를 연결한다. 조사용품만 해당한다', cols:['id','transfer_item_id','inventory_unit_id','unloaded_at']},
  InventoryStocks:{grp:'재고', sub:'실물 재고 (수량과 낱개)', join:1, role:'회사·품목별 재고 1행. 현재고는 재고유형과 무관하게 qty 이고 가용재고는 qty - reserved_qty 다. base_qty 는 근조기·축기가 몇 개 있어야 하는지를 정한 목표치이고 현재고 계산에 들어가지 않는다', cols:['stock_id','company_id','item_cd','inventory_type','qty','reserved_qty','base_qty']},
- InventoryUnits:{grp:'재고', sub:'실물 재고 (수량과 낱개)', join:1, role:'조사용품 실물 한 개. 바코드로 어느 낱개가 어디 있는지를 추적한다. 수량 자체는 InventoryStocks.qty 가 갖고 이 행은 그 안의 개별 실물을 가리킨다. 근조기·축기는 이 행이 없다', cols:['unit_id','barcode','company_id','item_cd','inventory_type','status','last_shipment_id']},
+ InventoryUnits:{grp:'재고', sub:'실물 재고 (수량과 낱개)', join:1, role:'조사용품 실물 한 개. 바코드로 어느 낱개가 어디 있는지를 추적한다. 수량 자체는 InventoryStocks.qty 가 갖고 이 행은 그 안의 개별 실물을 가리킨다. 근조기·축기는 이 행이 없다', cols:['unit_id','barcode','company_id','item_cd','inventory_type','status','last_issue_id']},
  InventoryBaseQtyHistory:{grp:'재고', sub:'기준수량', join:1, role:'근조기·축기 기준수량(base_qty) 변경 이력. 목표치를 누가 언제 얼마로 바꿨는지 남긴다. 본사 관리자가 편집할 때만 쌓인다', cols:['base_qty_history_id','inventory_stock_id','item_cd','old_qty','new_qty','reason']},
  InventoryIssues:{grp:'재고', sub:'출고 전표', role:'출고 전표. 회사에서 재고가 나간 사실을 기록한다', cols:['issue_id','company_id','issue_type','status','issued_at']},
  InventoryIssueItems:{grp:'재고', sub:'출고 전표', join:1, role:'출고 품목. 사용수량은 CONSUME 전표의 이 행을 합산한다', cols:['issue_item_id','issue_id','item_cd','inventory_type','qty']},
@@ -366,7 +366,7 @@ var SCHEMA = {
  InventoryAudits:{grp:'재고', sub:'실사', role:'재고 실사 1건. 시작 시점의 재고 수량을 장부 수량으로 복사한다', cols:['inventory_audit_id','company_id','inventory_type','status','audit_dt']},
  InventoryAuditItems:{grp:'재고', sub:'실사', join:1, role:'실사 품목. book_qty 는 시작 시점의 InventoryStocks.qty 복사본이고, actual_qty 는 찍거나 입력한 수, diff_qty 는 그 차이다', cols:['inventory_audit_item_id','inventory_audit_id','item_cd','book_qty','actual_qty','diff_qty']},
  InventoryReceipts:{grp:'재고', sub:'입고 전표', role:'입고 전표. 회사로 재고가 들어온 사실을 기록한다', cols:['receipt_id','company_id','receipt_type','status','receipt_dt']},
- InventoryReceiptItems:{grp:'재고', sub:'입고 전표', join:1, role:'입고 품목. 근조기·축기 반납 합산은 receipt_type=RETURN 전표만 센다', cols:['receipt_item_id','receipt_id','item_cd','inventory_type','qty']}
+ InventoryReceiptItems:{grp:'재고', sub:'입고 전표', join:1, role:'입고 품목. 근조기·축기 반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다', cols:['receipt_item_id','receipt_id','item_cd','inventory_type','qty']}
 };
 
 var ITEM_NAME = {'A0100010':'[조사용품] 현진시닝(300인분)','B0201001':'근조기','C0310220':'[근조기]LG전자'};
@@ -374,16 +374,16 @@ var ITEM_NAME = {'A0100010':'[조사용품] 현진시닝(300인분)','B0201001':
 var BASE_A = [
  ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'5',reserved_qty:'0',base_qty:'null'}],
  ['InventoryStocks','ST-2',{stock_id:'ST-2',company_id:'서울지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
- ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
- ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+ ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}],
+ ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}]
 ];
 var BASE_B = [
  ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'5',reserved_qty:'0',base_qty:'null'}],
  ['InventoryStocks','ST-2',{stock_id:'ST-2',company_id:'부산지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
  ['InventoryStocks','ST-3',{stock_id:'ST-3',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'0',reserved_qty:'0',base_qty:'null'}],
  ['InventoryStocks','ST-4',{stock_id:'ST-4',company_id:'서울지점',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'0',reserved_qty:'0',base_qty:'10'}],
- ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
- ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+ ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-1001',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}],
+ ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-1002',company_id:'부산지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}]
 ];
 
 function ins(t,k,d){return{t:t,k:k,op:'I',d:d};}
@@ -440,8 +440,8 @@ var FLOW_A = {
     ins('InventoryIssues','ISS-1',{issue_id:'ISS-1',company_id:'서울지점',issue_type:'CONSUME',status:'COMPLETED',issued_at:'2026-08-20 10:12'}),
     ins('InventoryIssueItems','II-1',{issue_item_id:'II-1',issue_id:'ISS-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
     ins('InventoryIssueItems','II-2',{issue_item_id:'II-2',issue_id:'ISS-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
-    upd('InventoryUnits','U-1',{status:'CONSUMED',last_shipment_id:'ISS-1'}),
-    upd('InventoryUnits','U-2',{status:'CONSUMED',last_shipment_id:'ISS-1'}),
+    upd('InventoryUnits','U-1',{status:'CONSUMED',last_issue_id:'ISS-1'}),
+    upd('InventoryUnits','U-2',{status:'CONSUMED',last_issue_id:'ISS-1'}),
     upd('InventoryStocks','ST-1',{qty:'3',reserved_qty:'0'})
    ]},
   {no:'5', nm:'배송 완료', who:'협력사 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/deliver',
@@ -498,15 +498,16 @@ var FLOW_B = {
     ins('InventoryIssues','ISS-1',{issue_id:'ISS-1',company_id:'부산지점',issue_type:'TRANSFER',status:'COMPLETED',issued_at:'2026-08-20 09:30'}),
     ins('InventoryIssueItems','II-1',{issue_item_id:'II-1',issue_id:'ISS-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
     ins('InventoryIssueItems','II-2',{issue_item_id:'II-2',issue_id:'ISS-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
-    upd('InventoryUnits','U-1',{status:'IN_TRANSIT',last_shipment_id:'ISS-1'}),
-    upd('InventoryUnits','U-2',{status:'IN_TRANSIT',last_shipment_id:'ISS-1'}),
+    upd('InventoryUnits','U-1',{status:'IN_TRANSIT',last_issue_id:'ISS-1'}),
+    upd('InventoryUnits','U-2',{status:'IN_TRANSIT',last_issue_id:'ISS-1'}),
     upd('InventoryStocks','ST-1',{qty:'3',reserved_qty:'0'}),
     upd('InvTransfers','TR-1',{status:'IN_TRANSIT',issue_id:'ISS-1'})
    ]},
   {no:'5', nm:'하차', who:'도착 지점 담당자', http:'POST .../unload-barcodes  ·  PATCH .../complete',
    svc:'InventoryTransferService.scanUnloadBarcode → completeUnload',
    desc:'서울로 재고가 들어온다. 입고 전표를 남기고 도착사 재고 수량이 늘어난다. 유닛은 서울의 재고가 된다.',
-   todo:'Task 6. 지금은 유닛의 소유 회사만 도착사로 옮기고 상태를 IN_STOCK 이 아니라 CONSUMED 로 둔다(inventory-transfer.service.ts:588). 입고 전표를 만들지 않고 도착사 수량도 늘리지 않아, 부산에서 빠진 만큼 서울에서 채워지지 않는다. 이동할수록 전사 합계가 준다.',
+   note:'상차가 출발사에 남기는 출고 전표에 대응하는 처리다. 스캔 세션을 거치지 않으므로 전표가 바로 COMPLETED 로 만들어진다.',
+   todo:'근조기ㆍ축기 사용수량 집계가 입고 전표 유형과 무관해서(ceremonial-flag-inventory.service.ts:103) 이 TRANSFER 입고 전표까지 반납으로 차감한다. 서울의 근조기 사용수량이 3 줄어 잔여수량이 기준수량을 넘는다.',
    ops:[
     ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'COMPLETED',receipt_dt:'2026-08-20 14:05'}),
     ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
@@ -530,8 +531,8 @@ var FLOW_B = {
     ins('InventoryIssues','ISS-2',{issue_id:'ISS-2',company_id:'서울지점',issue_type:'CONSUME',status:'COMPLETED',issued_at:'2026-08-20 15:40'}),
     ins('InventoryIssueItems','II-3',{issue_item_id:'II-3',issue_id:'ISS-2',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
     ins('InventoryIssueItems','II-4',{issue_item_id:'II-4',issue_id:'ISS-2',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
-    upd('InventoryUnits','U-1',{status:'CONSUMED',last_shipment_id:'ISS-2'}),
-    upd('InventoryUnits','U-2',{status:'CONSUMED',last_shipment_id:'ISS-2'}),
+    upd('InventoryUnits','U-1',{status:'CONSUMED',last_issue_id:'ISS-2'}),
+    upd('InventoryUnits','U-2',{status:'CONSUMED',last_issue_id:'ISS-2'}),
     upd('InventoryStocks','ST-3',{qty:'0'})
    ]},
   {no:'7', nm:'배송 완료', who:'도착 지점 담당자', http:'POST /v1/fsms/partners/flower/orders/:id/deliver',
@@ -573,8 +574,8 @@ var FLOW_C = {
    ops:[
     ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'TRANSFER',source_company_id:'물류센터',destination_company_id:'서울지점',status:'IN_TRANSIT',issue_id:'null',receipt_id:'null',erp_doc_no:'ERP-12345'}),
     ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'}),
-    ins('InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-2001',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_shipment_id:'null'}),
-    ins('InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-2002',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_shipment_id:'null'}),
+    ins('InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-2001',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_issue_id:'null'}),
+    ins('InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-2002',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_issue_id:'null'}),
     ins('InvTransferItemUnits','TU-1',{id:'TU-1',transfer_item_id:'TI-1',inventory_unit_id:'U-1',unloaded_at:'null'}),
     ins('InvTransferItemUnits','TU-2',{id:'TU-2',transfer_item_id:'TI-1',inventory_unit_id:'U-2',unloaded_at:'null'})
    ]},
@@ -599,7 +600,7 @@ var FLOW_C = {
    svc:'InventoryScanService.complete',
    desc:'미리 만들어 둔 유닛이 서울지점 재고가 되고 입고 품목과 재고 수량이 채워진다. 이동도 함께 수령 처리된다.',
    note:'유닛을 새로 만드는 것이 아니라 이미 있는 것을 넘겨받는 형태다. 소유 회사가 물류센터에서 서울지점으로, 상태가 IN_TRANSIT 에서 IN_STOCK 으로 바뀐다.',
-   todo:'두 가지가 미구현이다. 첫째, complete 의 중복 검사가 companyId=받는 지점 + status=IN_STOCK 으로만 보므로(:647) 물류센터 소유 IN_TRANSIT 유닛을 찾지 못하고 같은 바코드로 유닛을 하나 더 만든다. 둘째, InventoryStocks.qty 를 건드리지 않는다(:617). 수량은 나중에 실사가 덮어쓸 때 맞춰지므로 그 전까지 유닛 수와 qty 가 어긋난다.',
+   todo:'complete 의 중복 검사가 companyId=받는 지점 + status=IN_STOCK 으로만 보므로(inventory-scan.service.ts:649) 물류센터 소유 IN_TRANSIT 유닛을 찾지 못하고 같은 바코드로 유닛을 하나 더 만든다.',
    ops:[
     upd('InventoryUnits','U-1',{company_id:'서울지점',status:'IN_STOCK'}),
     upd('InventoryUnits','U-2',{company_id:'서울지점',status:'IN_STOCK'}),
@@ -625,9 +626,9 @@ var FLOW_D = {
   +'</tbody></table>',
  base:[
   ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'3',reserved_qty:'0',base_qty:'null'}],
-  ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-3001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
-  ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-3002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}],
-  ['InventoryUnits','U-3',{unit_id:'U-3',barcode:'BC-3003',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_shipment_id:'null'}]
+  ['InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-3001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}],
+  ['InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-3002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}],
+  ['InventoryUnits','U-3',{unit_id:'U-3',barcode:'BC-3003',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}]
  ],
  steps:[
   {no:'1', nm:'실사 세션 시작', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions',
@@ -711,7 +712,7 @@ var FLOW_E = {
   {no:'3', nm:'반납 입고 2', who:'지점 담당자', http:'POST /v1/fsms/inventory/ceremonial-flags/receipts',
    svc:'CeremonialFlagInventoryService.createReturnReceipt',
    desc:'나갔던 근조기 2개가 돌아온다. QR 없이 수량을 직접 입력한다. 완료 상태의 입고 전표가 바로 만들어지고 현재고가 2 는다.',
-   note:'반납 합산은 receipt_type=RETURN 전표만 센다. 사용수량이 7에서 5로 줄고 현재고가 3에서 5로 는다.',
+   note:'반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다. 사용수량이 7에서 5로 줄고 현재고가 3에서 5로 는다.',
    todo:'지금은 입고 전표만 만들고 InventoryStocks.qty 를 건드리지 않는다. 현재고를 qty 하나로 읽으려면 이 자리에 수량 증가가 붙어야 한다.',
    derived:[['현재고(qty)','3 → 5'],['기준수량','10'],['사용수량','7 → 5']],
    ops:[
