@@ -24,6 +24,12 @@ h1{font-size:22px;font-weight:600;margin:0 0 6px}
 h2{font-size:17px;font-weight:600;margin:28px 0 10px}
 .sub{color:var(--dim);font-size:14px;margin:0 0 18px}
 .principle{background:var(--accbg);color:var(--acc);border-radius:10px;padding:12px 16px;font-size:15px;margin:0 0 22px}
+.cpt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:22px}
+.cpt p{font-size:14px;line-height:1.75;color:var(--ink);margin:0 0 12px}
+.cpt table{margin:0 0 16px}
+.cptq{font-size:15px;font-weight:700;color:var(--acc);margin:22px 0 10px;padding-top:16px;border-top:1px solid var(--line)}
+.cpt .cptq:first-child{margin-top:0;padding-top:0;border-top:0}
+.cptpre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.6;overflow-x:auto;margin:0 0 16px}
 .erd{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:24px}
 @media (prefers-color-scheme:dark){.erd{background:#f7f6f3}}
 .grpmap{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:14px;margin-bottom:22px}
@@ -170,6 +176,78 @@ td.chg{background:var(--warnbg);color:var(--warn);font-weight:600}
 <h1>재고 입출고 흐름</h1>
 <p class="sub">이슈 829 설계 기준. 모든 단계가 구현된 상태를 그리고, 아직 구현되지 않은 단계에는 <span class="badge b-todo">미구현</span> 을 붙인다. 그 단계를 누르면 지금 코드가 무엇을 하는지 나온다.</p>
 <div class="principle">회사에서 재고가 나가면 <b>출고</b>, 들어오면 <b>입고</b>. 나가고 들어오는 이유는 구분하지 않는다. 그래서 탁송의 마지막 단계와 비탁송이 같은 코드가 된다.</div>
+
+<h2>0. 개념</h2>
+<div class="cpt">
+
+<div class="cptq">재고 테이블은 장부와 같은 구조다</div>
+<p>잔고는 <b>지금 상태</b>이고 전표는 <b>일어난 사건</b>이다. 이 둘이 별개 테이블인 것이 첫 번째 갈림이다.</p>
+<table><thead><tr><th>장부 개념</th><th>재고 테이블</th></tr></thead><tbody>
+<tr><td>잔고</td><td><code>InventoryStocks</code></td></tr>
+<tr><td>거래 기록</td><td><code>InventoryIssues</code>(나감) · <code>InventoryReceipts</code>(들어옴)</td></tr>
+<tr><td>계정 간 대체</td><td><code>InvTransfers</code></td></tr>
+<tr><td>실사 후 조정</td><td><code>InventoryAudits</code></td></tr>
+</tbody></table>
+
+<div class="cptq">테이블 16개는 다섯 무리다</div>
+<table><thead><tr><th>무리</th><th>테이블</th><th>무엇</th></tr></thead><tbody>
+<tr><td>잔고</td><td class="mono">InventoryStocks · InventoryUnits</td><td>지금 있는 것</td></tr>
+<tr><td>나감</td><td class="mono">InventoryIssues + Items</td><td>출고 전표</td></tr>
+<tr><td>들어옴</td><td class="mono">InventoryReceipts + Items</td><td>입고 전표</td></tr>
+<tr><td>이동 지시</td><td class="mono">InvTransfers + Items + ItemUnits</td><td>어디서 어디로</td></tr>
+<tr><td>사람의 작업</td><td class="mono">InventoryScanSessions + Events · InventoryAudits + Items</td><td>스캔과 실사 과정</td></tr>
+</tbody></table>
+<p>여기에 <code>FevFlowerOrders</code> + <code>FevFlowerOrderItems</code>(왜 나가는가)와 <code>InventoryBaseQtyHistory</code>(기준수량 변경 이력)가 붙어 16개가 된다.</p>
+
+<div class="cptq">반복되는 모양이 하나뿐이다</div>
+<p>넷이 똑같이 생겼다. 머리 하나에 품목 여러 개다. 머리에는 누가·언제·어디로가 있고, 품목에는 무엇을·몇 개가 있다.</p>
+<pre class="cptpre">InventoryIssues   (전표 1건)  →  InventoryIssueItems   (품목 N개)
+InventoryReceipts (전표 1건)  →  InventoryReceiptItems (품목 N개)
+InvTransfers      (이동 1건)  →  InvTransferItems      (품목 N개)
+InventoryAudits   (실사 1건)  →  InventoryAuditItems   (품목 N개)</pre>
+
+<div class="cptq">관계의 뼈대는 링크 두 개다</div>
+<p>같은 물건 하나의 이동이 전표 두 장을 만든다. 나가는 쪽 한 장, 들어오는 쪽 한 장이다. <code>InvTransfers</code>가 그 둘을 묶는다.</p>
+<pre class="cptpre">부산지점                                                       서울지점
+   |                                                              |
+   | 상차                                                   하차   |
+   v                                                              v
+InventoryIssues  &lt;-- issue_id --  InvTransfers  -- receipt_id --&gt;  InventoryReceipts
+ (부산에서 나감)                   (이동 지시서)                     (서울에 들어옴)</pre>
+
+<div class="cptq">잔고가 두 층인 이유</div>
+<p>조사용품은 QR이 붙어 있어 "3개 있다"뿐 아니라 "BC-1001, BC-1002, BC-1003이 있다"까지 안다. 근조기·축기는 QR이 없어 숫자만 안다. 그래서 조사용품에만 <code>InventoryUnits</code> 행이 있다.</p>
+<table><thead><tr><th>테이블</th><th>단위</th><th>대상</th></tr></thead><tbody>
+<tr><td class="mono">InventoryStocks</td><td>품목별 숫자</td><td>전 재고유형</td></tr>
+<tr><td class="mono">InventoryUnits</td><td>바코드 1개 = 1행</td><td>조사용품만</td></tr>
+</tbody></table>
+
+<div class="cptq">재고유형 둘이 현재고를 다르게 구한다</div>
+<p>근조기는 이 지점에 몇 개 있어야 하는지를 <code>base_qty</code>로 정해 두고, 나간 만큼 빼서 지금 몇 개인지를 계산한다. 저장된 숫자가 아니라 조회할 때마다 계산하는 값이다. 같은 테이블에 두 방식이 섞여 있어 <code>qty</code>와 <code>base_qty</code>가 한 행에 나란히 있다.</p>
+<table><thead><tr><th></th><th>조사용품</th><th>근조기ㆍ축기</th></tr></thead><tbody>
+<tr><td>현재고</td><td class="mono">InventoryStocks.qty 를 읽는다</td><td>base_qty - 사용수량 을 계산한다</td></tr>
+<tr><td><code>qty</code> 컬럼</td><td>쓴다</td><td><b>쓰지 않는다</b></td></tr>
+<tr><td>사용수량</td><td>개념 없음</td><td>CONSUME 출고 합 - RETURN 입고 합</td></tr>
+</tbody></table>
+
+<div class="cptq">왜 출고와 입고를 따로 두는가</div>
+<p><b>이동 하나에 유형 컬럼을 두는 안도 성립한다.</b> 재고 시스템에서 흔한 형태이고, 이 설계도 이미 그 방향으로 절반 가 있다. <code>InvTransfers.transfer_type</code>(TRANSFER / DELIVERY)이 있고 <code>destination_company_id</code>는 nullable이다. 도착사가 없는 자사 배송을 그 조합으로 담는다.</p>
+<p>그런데도 전표를 따로 둔 결정적 이유는 <b>입고 전표가 이미 있었다는 것</b>이다. <code>InventoryReceipts</code>는 2026-07-02부터 있었고 입고 스캔 화면이 그 위에 붙어 있다. 이슈 829는 없던 출고 쪽을 대칭으로 채운 것이지, 둘을 합칠지를 다시 따진 작업이 아니다.</p>
+<p>합치기 어렵게 만드는 구조적 차이는 셋이다.</p>
+<table><thead><tr><th></th><th>입고 전표</th><th>출고 전표</th></tr></thead><tbody>
+<tr><td>생애주기</td><td>기본값 <span class="mono">IN_PROGRESS</span>. 스캔하는 동안 열려 있다</td><td>기본값 <span class="mono">COMPLETED</span>. 그 순간 끝난다</td></tr>
+<tr><td>채번</td><td class="mono">receipt_no</td><td class="mono">issue_no</td></tr>
+<tr><td>붙는 데이터</td><td class="mono">InventoryScanSessions.receipt_id</td><td class="mono">InventoryUnits.last_shipment_id</td></tr>
+</tbody></table>
+<p>한 테이블에 담으면 <span class="mono">IN_PROGRESS</span>가 출고 행에서는 의미 없는 값이 되고, 채번도 유형에 따라 갈라야 한다. 스캔 세션은 입고에만 붙고 출고에는 스캔 과정이 없다.</p>
+<p>전표를 나눈 대신 관점이 단순해진다. <b>전표는 회사 하나의 관점에서 한 장씩 생긴다.</b> 짝이 있으면 두 장, 없으면 한 장이다.</p>
+<table><thead><tr><th>사건</th><th>출고 전표</th><th>입고 전표</th></tr></thead><tbody>
+<tr><td>지점 → 지점 (탁송)</td><td>출발 지점에 1장 (<span class="mono">TRANSFER</span>)</td><td>도착 지점에 1장 (<span class="mono">TRANSFER</span>)</td></tr>
+<tr><td>지점 → 장례식장 (배송)</td><td>1장 (<span class="mono">CONSUME</span>)</td><td>없음</td></tr>
+<tr><td>물류센터 → 지점 (입고)</td><td>없음</td><td>1장 (<span class="mono">EXTERNAL</span>)</td></tr>
+</tbody></table>
+<p>실무에서 갈리는 자리가 근조기ㆍ축기 사용수량이다. 지점 간 이동(<span class="mono">TRANSFER</span>)은 회사 밖으로 나간 것이 아니라 사용수량에 세지 않는다. 지금은 <code>issue_type</code>이 <span class="mono">CONSUME</span>인지만 보면 되고, 이동 하나로 관리했다면 도착사 유무로 매번 판별해야 한다.</p>
+</div>
 
 <h2>테이블 관계</h2>
 <div class="erd">
