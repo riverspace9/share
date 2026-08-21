@@ -333,11 +333,11 @@ if(window.mermaid){
 <tr><td>연결 테이블</td><td class="mono">InventoryScanSessions.receipt_id</td><td class="mono">InventoryUnits.last_issue_id</td></tr>
 </tbody></table>
 <p>한 테이블로 통합하면 <span class="mono">IN_PROGRESS</span>가 출고 행에서 의미 없는 값이 되고, 채번도 유형별로 분리해야 한다. 스캔 세션은 입고에만 연결되고 출고에는 스캔 절차가 없다.</p>
-<p>전표를 분리한 결과로 기록 규칙이 단순해진다. <b>전표는 회사 하나를 기준으로 1건씩 생성된다.</b> 상대 회사가 우리 회사이면 2건, 아니면 1건이다.</p>
+<p>전표를 분리한 결과로 기록 규칙이 단순해진다. <b>전표는 회사 하나를 기준으로 1건씩 생성된다.</b> 상대 회사가 우리 회사이면 2건, 아니면 1건이다.</p><p>물류센터는 <code>OrgCompanies</code>에 등록하지만 재고를 우리가 관리하지 않는다. 그래서 상대 회사가 우리 회사인데도 출고 전표가 생기지 않는다. 물류센터가 우리 화면에서 출고를 찍는 절차가 없기 때문이다.</p>
 <table><thead><tr><th>사건</th><th>출고 전표</th><th>입고 전표</th></tr></thead><tbody>
 <tr><td>지점 → 지점 (탁송)</td><td>출발 지점에 1건 (<span class="mono">TRANSFER</span>)</td><td>도착 지점에 1건 (<span class="mono">TRANSFER</span>)</td></tr>
 <tr><td>지점 → 장례식장 (배송)</td><td>1건 (<span class="mono">CONSUME</span>)</td><td>없음</td></tr>
-<tr><td>물류센터 → 지점 (입고)</td><td>없음</td><td>1건 (<span class="mono">EXTERNAL</span>)</td></tr>
+<tr><td>물류센터 → 지점 (입고)</td><td>없음</td><td>1건 (<span class="mono">TRANSFER</span>)</td></tr>
 </tbody></table>
 <p>이 구분이 실제로 사용되는 예가 근조기ㆍ축기 사용수량이다. 지점 간 이동(<span class="mono">TRANSFER</span>)은 회사 외부로 나간 것이 아니므로 사용수량에 포함하지 않는다. 현재는 <code>issue_type</code>이 <span class="mono">CONSUME</span>인지만 확인하면 되고, 이동 테이블 하나로 관리했다면 도착 회사 유무로 매번 판별해야 한다.</p>
 
@@ -395,7 +395,7 @@ var SCHEMA = {
  InventoryAudits:{grp:'재고', sub:'실사', role:'재고 실사 1건. 시작 시점의 재고 수량을 장부 수량으로 복사한다', cols:['inventory_audit_id','company_id','inventory_type','status','audit_dt']},
  InventoryAuditItems:{grp:'재고', sub:'실사', join:1, role:'실사 품목. book_qty 는 시작 시점의 InventoryStocks.qty 복사본이고, actual_qty 는 찍거나 입력한 수, diff_qty 는 그 차이다', cols:['inventory_audit_item_id','inventory_audit_id','item_cd','book_qty','actual_qty','diff_qty']},
  InventoryReceipts:{grp:'재고', sub:'입고 전표', role:'입고 전표. 회사로 재고가 들어온 사실을 기록한다', cols:['receipt_id','company_id','receipt_type','status','receipt_dt']},
- InventoryReceiptItems:{grp:'재고', sub:'입고 전표', join:1, role:'입고 품목. 근조기·축기 반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다', cols:['receipt_item_id','receipt_id','item_cd','inventory_type','qty']}
+ InventoryReceiptItems:{grp:'재고', sub:'입고 전표', join:1, role:'입고 품목. 근조기·축기 반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다', cols:['receipt_item_id','receipt_id','item_cd','inventory_type','qty','barcode']}
 };
 
 var ITEM_NAME = {'A0100010':'[조사용품] 현진시닝(300인분)','B0201001':'근조기','C0310220':'[근조기]LG전자'};
@@ -540,12 +540,13 @@ var FLOW_B = {
   {no:'5', nm:'하차', who:'도착 지점 담당자', http:'POST .../unload-barcodes  ·  PATCH .../complete',
    svc:'InventoryTransferService.scanUnloadBarcode → completeUnload',
    desc:'서울로 재고가 들어온다. 입고 전표를 남기고 도착사 재고 수량이 늘어난다. 유닛은 서울의 재고가 된다.',
-   note:'상차가 출발사에 남기는 출고 전표에 대응하는 처리다. 스캔 세션을 거치지 않으므로 전표가 바로 COMPLETED 로 만들어진다.',
+   note:'상차가 출발사에 남기는 출고 전표에 대응하는 처리다. 스캔 세션을 거치지 않으므로 전표가 바로 COMPLETED 로 만들어진다. 조사용품 입고 품목은 바코드마다 한 행이고 근조기ㆍ축기는 수량 한 행이다.',
    todo:'근조기ㆍ축기 사용수량 집계가 입고 전표 유형과 무관해서(ceremonial-flag-inventory.service.ts:103) 이 TRANSFER 입고 전표까지 반납으로 차감한다. 서울의 근조기 사용수량이 3 줄어 실제보다 적게 나온다.',
    ops:[
     ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'COMPLETED',receipt_dt:'2026-08-20 14:05'}),
-    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
-    ins('InventoryReceiptItems','RI-2',{receipt_item_id:'RI-2',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'1',barcode:'BC-1001'}),
+    ins('InventoryReceiptItems','RI-2',{receipt_item_id:'RI-2',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'1',barcode:'BC-1002'}),
+    ins('InventoryReceiptItems','RI-3',{receipt_item_id:'RI-3',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'3',barcode:'null'}),
     upd('InventoryUnits','U-1',{company_id:'서울지점',status:'IN_STOCK'}),
     upd('InventoryUnits','U-2',{company_id:'서울지점',status:'IN_STOCK'}),
     upd('InventoryStocks','ST-3',{qty:'2'}),
@@ -583,66 +584,60 @@ var FLOW_B = {
 
 var FLOW_C = {
  name:'물류센터 입고',
- desc:'물류센터에서 지점으로 조사용품이 온다. 지점은 들어올 수량과 바코드를 미리 보고 받은 물건과 대조한다. 물류센터를 회사로 등록하고 ERP 발송 내역을 재고이동으로 적재하는 것이 전제다.',
- scen:'<h3>입고 내용</h3><div class="meta">물류센터에서 <b>서울지점</b>으로 조사용품이 온다. ERP 전표번호는 <b>ERP-12345</b>다.<br>'
-  +'물류센터를 <b>Company 1행</b>으로 등록하고 company_type 에 물류센터용 값을 넣는다. ERP 코드는 legacy_bp_code 에 담는다.<br>'
-  +'재고 쪽에 추가되는 것은 InvTransfers.erp_doc_no 컬럼 하나다. 같은 전표를 두 번 받아도 이 컬럼으로 걸러진다.</div>'
+ desc:'물류센터에서 지점으로 조사용품이 온다. 물류센터가 넘기는 것은 어디서 어디로 어떤 품목을 몇 개 보내는지까지다. 바코드는 넘어오지 않고 지점이 받아서 찍을 때 처음 등록된다.',
+ scen:'<h3>입고 내용</h3><div class="meta">물류센터에서 <b>서울지점</b>으로 조사용품이 온다. 발송 전표번호는 <b>WH-12345</b>다.<br>'
+  +'물류센터를 <b>Company 1행</b>으로 등록한다. 입고 목록의 <b>출고 창고</b> 열이 이동 출발사의 회사명을 그대로 읽으므로, 창고와 지점이 한 열에 섞여 나오는 화면이 그대로 성립한다.<br>'
+  +'재고 쪽에 추가되는 것은 InvTransfers.erp_doc_no 컬럼 하나다. 같은 발송을 두 번 받아도 이 컬럼으로 걸러진다.</div>'
   +'<div class="cmp"><div class="cmpt">지금 동작과의 차이</div><table><thead><tr><th></th><th>지금</th><th>이 탭이 그리는 모습</th></tr></thead><tbody>'
-  +'<tr><td>물류센터 발송 시</td><td>우리 DB에 아무 행도 생기지 않는다</td><td>이동 1행, 품목 1행, 유닛 2행이 생긴다</td></tr>'
-  +'<tr><td>지점이 미리 아는 것</td><td>없다. 물건이 와야 안다</td><td>들어올 수량과 바코드</td></tr>'
-  +'<tr><td>스캔 판정</td><td>예정이 없어 전부 예정 밖으로 나온다</td><td>예정과 대조해 초과를 가른다</td></tr>'
+  +'<tr><td>물류센터 발송 시</td><td>우리 DB에 아무 행도 생기지 않는다</td><td>이동 1행, 품목 1행이 생긴다</td></tr>'
+  +'<tr><td>지점이 미리 아는 것</td><td>없다. 물건이 와야 안다</td><td>들어올 품목과 수량. 바코드는 모른다</td></tr>'
+  +'<tr><td>스캔 판정</td><td>예정이 없어 전부 예정 밖으로 나온다</td><td>예정 수량과 대조해 초과를 가른다</td></tr>'
   +'<tr><td>입고 전표 유형</td><td class="mono">EXTERNAL</td><td class="mono">TRANSFER</td></tr>'
-  +'<tr><td>유닛이 생기는 시점</td><td>스캔한 뒤. 바로 IN_STOCK</td><td>발송 시점. 먼저 IN_TRANSIT</td></tr>'
+  +'<tr><td>유닛이 생기는 시점</td><td colspan="2">같다. 지점이 찍고 입고를 완료할 때</td></tr>'
   +'<tr><td>화면</td><td colspan="2">같다. 입고 스캔 세션 하나를 쓴다</td></tr>'
   +'</tbody></table></div>'
-  +'<table><thead><tr><th>품목코드</th><th>품목명</th><th>재고유형</th><th>단위</th><th>수량</th><th>바코드</th></tr></thead><tbody>'
-  +'<tr><td class="mono">A0100010</td><td>[조사용품] 현진시닝(300인분)</td><td class="mono">FUNERAL_SUPPLIES</td><td>BOX</td><td>2</td><td class="mono">BC-2001, BC-2002</td></tr>'
+  +'<table><thead><tr><th>품목코드</th><th>품목명</th><th>재고유형</th><th>단위</th><th>발송 수량</th><th>바코드</th></tr></thead><tbody>'
+  +'<tr><td class="mono">A0100010</td><td>[조사용품] 현진시닝(300인분)</td><td class="mono">FUNERAL_SUPPLIES</td><td>BOX</td><td>2</td><td>발송 시점에는 없다</td></tr>'
   +'</tbody></table>',
  base:[
   ['InventoryStocks','ST-1',{stock_id:'ST-1',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'0',reserved_qty:'0',base_qty:'null'}]
  ],
  steps:[
-  {no:'1', nm:'ERP 발송 내역 적재', who:'배치 또는 ERP 호출', http:'정해지지 않음',
-   svc:'ERP 연동 처리',
-   desc:'ERP의 재고이동 데이터를 읽어 우리 이동 행을 만든다. 상차는 ERP가 이미 했으므로 status 를 PREPARING 이 아니라 IN_TRANSIT 으로 바로 만든다.',
-   note:'유닛을 IN_TRANSIT 으로 미리 만드는 것이 요점이다. 이 행들이 있어야 지점이 어떤 바코드가 오는지 볼 수 있다. 담을 자리는 탁송 상차가 쓰는 구조와 같아서 새로 만들 것이 없다.',
-   todo:'적재 경로가 정해지지 않았다. ERP가 우리 테이블에 넣을지, 우리가 API를 열지, 우리가 ERP DB를 읽을지가 미정이다. 지금은 이 단계가 없어 물류센터 발송 시 우리 DB에 아무 행도 생기지 않는다.',
+  {no:'1', nm:'발송 내역 적재', who:'배치 또는 물류센터 호출', http:'정해지지 않음',
+   svc:'발송 내역 적재',
+   desc:'물류센터가 보낸 발송 내역으로 이동 행을 만든다. 물류센터가 이미 실어 보냈으므로 status 를 PREPARING 이 아니라 IN_TRANSIT 으로 바로 만든다.',
+   note:'바코드가 넘어오지 않으므로 유닛도 이동 품목과 유닛을 잇는 연결 행도 만들지 않는다. 이동과 품목 두 행이 전부다. 탁송은 상차 스캔이 있어 이 자리에서 유닛과 연결이 생기고, 물류센터 발송은 그 단계가 없다.',
+   todo:'적재 경로가 정해지지 않았다. 물류센터가 우리 테이블에 넣을지 우리가 API를 열지가 미정이다. 지금은 이 단계가 없어 물류센터 발송 시 우리 DB에 아무 행도 생기지 않는다.',
    ops:[
-    ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'TRANSFER',source_company_id:'물류센터',destination_company_id:'서울지점',status:'IN_TRANSIT',issue_id:'null',receipt_id:'null',erp_doc_no:'ERP-12345'}),
-    ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'}),
-    ins('InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-2001',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_issue_id:'null'}),
-    ins('InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-2002',company_id:'물류센터',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_TRANSIT',last_issue_id:'null'}),
-    ins('InvTransferItemUnits','TU-1',{id:'TU-1',transfer_item_id:'TI-1',inventory_unit_id:'U-1',unloaded_at:'null'}),
-    ins('InvTransferItemUnits','TU-2',{id:'TU-2',transfer_item_id:'TI-1',inventory_unit_id:'U-2',unloaded_at:'null'})
+    ins('InvTransfers','TR-1',{transfer_id:'TR-1',transfer_type:'TRANSFER',source_company_id:'물류센터',destination_company_id:'서울지점',status:'IN_TRANSIT',issue_id:'null',receipt_id:'null',erp_doc_no:'WH-12345'}),
+    ins('InvTransferItems','TI-1',{transfer_item_id:'TI-1',transfer_id:'TR-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',requested_qty:'2'})
    ]},
-  {no:'2', nm:'지점이 예정 확인', who:'지점 담당자', http:'GET /v1/fsms/inventory/scan-sessions/:id/receipt',
-   svc:'InventoryScanService.getReceipt',
-   desc:'입고 화면에 들어올 수량과 바코드가 보인다. 재고 테이블은 바뀌지 않는다. 조회만 한다.',
-   note:'수량(plannedQty)은 지금 코드로 그대로 나온다. loadBaselineTransfers 가 도착사 기준 IN_TRANSIT 이동을 찾기 때문이다(inventory-scan.service.ts:93).',
-   todo:'예정 바코드 목록이 응답에 없다. loadBaselineTransfers 가 items 만 include 하고 InvTransferItemUnits 를 타지 않는다. 바코드 대조를 켜는 gateOn 조건도 실사 세션으로 제한돼 있어(:191) 입고 세션에서는 꺼져 있다.',
+  {no:'2', nm:'지점이 예정 확인', who:'지점 담당자', http:'GET /v1/fsms/inventory/inbound-transfers',
+   svc:'InventoryScanService.inboundTransfers',
+   desc:'입고 목록에 들어올 품목과 수량이 보인다. 재고 테이블은 바뀌지 않는다. 조회만 한다.',
+   note:'예정 수량은 지금 코드로 그대로 나온다. loadBaselineTransfers 가 도착사 기준 IN_TRANSIT 이동을 찾기 때문이다(inventory-scan.service.ts:93).',
+   todo:'입고완료 수량이 늘 0으로 나온다. 상차 바코드와 입고 바코드의 교집합으로 세는데(:1015) 물류센터 발송에는 상차 바코드가 없다. 같은 품목이 여러 창고에서 오면 찍은 바코드를 어느 발송 건에 귀속할지도 정해지지 않았다.',
    ops:[]},
   {no:'3', nm:'입고 스캔', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions  ·  POST .../:id/scan',
    svc:'InventoryScanService.start → scan',
-   desc:'입고 세션을 열고 받은 바코드를 찍는다. 스캔 1건이 이벤트 행으로 쌓이고 재고 테이블은 아직 바뀌지 않는다.',
+   desc:'입고 세션을 열고 받은 물건의 바코드를 찍는다. 바코드가 여기서 처음 등장한다. 스캔 1건이 이벤트 행으로 쌓이고 재고 테이블은 아직 바뀌지 않는다.',
    note:'화환 탁송 하차(scanUnloadBarcode)가 아니라 입고 스캔 세션을 탄다. loadBaselineTransfers 가 플라워 주문이 붙지 않은 이동만 찾으므로 물류센터 이동이 여기에 걸린다. 같은 판정을 부작용 없이 미리 보는 GET .../lookup 이 따로 있고, 그쪽은 행을 만들지 않는다.',
    todo:'전표 유형만 다르다. 1단계 이동이 없으면 이 전표가 TRANSFER 가 아니라 EXTERNAL 로 만들어진다. 지금이 그 상태다.',
    ops:[
-    ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'IN_PROGRESS',receipt_dt:'2026-08-20 10:20'}),
+    ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'TRANSFER',status:'IN_PROGRESS',receipt_dt:'2026-08-21 10:20'}),
     ins('InventoryScanSessions','SS-1',{scan_session_id:'SS-1',session_type:'RECEIVING',company_id:'서울지점',inventory_type:'FUNERAL_SUPPLIES',status:'IN_PROGRESS',receipt_id:'RCP-1'}),
     ins('InventoryScanEvents','EV-1',{scan_event_id:'EV-1',scan_session_id:'SS-1',barcode:'BC-2001',item_cd:'A0100010',result_code:'NORMAL',voided:'false'}),
     ins('InventoryScanEvents','EV-2',{scan_event_id:'EV-2',scan_session_id:'SS-1',barcode:'BC-2002',item_cd:'A0100010',result_code:'NORMAL',voided:'false'})
    ]},
   {no:'4', nm:'입고 완료', who:'지점 담당자', http:'POST /v1/fsms/inventory/scan-sessions/:id/complete',
    svc:'InventoryScanService.complete',
-   desc:'미리 만들어 둔 유닛이 서울지점 재고가 되고 입고 품목과 재고 수량이 채워진다. 이동도 함께 수령 처리된다.',
-   note:'유닛을 새로 만드는 것이 아니라 이미 있는 것을 넘겨받는 형태다. 소유 회사가 물류센터에서 서울지점으로, 상태가 IN_TRANSIT 에서 IN_STOCK 으로 바뀐다.',
-   todo:'complete 의 중복 검사가 companyId=받는 지점 + status=IN_STOCK 으로만 보므로(inventory-scan.service.ts:649) 물류센터 소유 IN_TRANSIT 유닛을 찾지 못하고 같은 바코드로 유닛을 하나 더 만든다.',
+   desc:'찍은 바코드가 유닛으로 등록되어 서울지점 재고가 되고 입고 품목과 재고 수량이 채워진다. 이동도 함께 수령 처리된다.',
+   note:'유닛은 이 시점에 새로 만들어진다. 입고 품목 행은 바코드마다 한 줄씩 qty 1 로 쌓인다. 이 흐름의 바코드는 여기서 처음이자 마지막으로 등록되므로 넘겨받을 유닛이 없다.',
    ops:[
-    upd('InventoryUnits','U-1',{company_id:'서울지점',status:'IN_STOCK'}),
-    upd('InventoryUnits','U-2',{company_id:'서울지점',status:'IN_STOCK'}),
-    upd('InvTransferItemUnits','TU-1',{unloaded_at:'2026-08-20 10:30'}),
-    upd('InvTransferItemUnits','TU-2',{unloaded_at:'2026-08-20 10:30'}),
-    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'2'}),
+    ins('InventoryUnits','U-1',{unit_id:'U-1',barcode:'BC-2001',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}),
+    ins('InventoryUnits','U-2',{unit_id:'U-2',barcode:'BC-2002',company_id:'서울지점',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',status:'IN_STOCK',last_issue_id:'null'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'1',barcode:'BC-2001'}),
+    ins('InventoryReceiptItems','RI-2',{receipt_item_id:'RI-2',receipt_id:'RCP-1',item_cd:'A0100010',inventory_type:'FUNERAL_SUPPLIES',qty:'1',barcode:'BC-2002'}),
     upd('InventoryStocks','ST-1',{qty:'2'}),
     upd('InventoryReceipts','RCP-1',{status:'COMPLETED'}),
     upd('InventoryScanSessions','SS-1',{status:'COMPLETED'}),
@@ -753,7 +748,7 @@ var FLOW_E = {
    derived:[['현재고(qty)','3 → 5'],['기준수량','10'],['사용수량','7 → 5']],
    ops:[
     ins('InventoryReceipts','RCP-1',{receipt_id:'RCP-1',company_id:'서울지점',receipt_type:'RETURN',status:'COMPLETED',receipt_dt:'2026-08-20 13:00'}),
-    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'2'}),
+    ins('InventoryReceiptItems','RI-1',{receipt_item_id:'RI-1',receipt_id:'RCP-1',item_cd:'B0201001',inventory_type:'CONDOLENCE_FLAG',qty:'2',barcode:'null'}),
     upd('InventoryStocks','ST-1',{qty:'5'})
    ]},
   {no:'4', nm:'실사 시작', who:'지점 담당자', http:'POST /v1/fsms/inventory/audits',
