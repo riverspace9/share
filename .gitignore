@@ -2,6 +2,8 @@ node_modules/
 .next/
 out/
 .preview/
+playwright-report/
+test-results/
 docs/superpowers/
 .superpowers/
 worktrees/
