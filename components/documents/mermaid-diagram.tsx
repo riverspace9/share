@@ -13,6 +13,13 @@ export interface MermaidDiagramProps {
 
 type MermaidTheme = 'default' | 'dark'
 
+let mermaidModule: Promise<typeof import('mermaid')> | undefined
+
+function loadMermaid() {
+  mermaidModule ??= import('mermaid')
+  return mermaidModule
+}
+
 function getMermaidTheme(): MermaidTheme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
 }
@@ -41,7 +48,7 @@ export function MermaidDiagram({ title, code }: MermaidDiagramProps) {
       setError(undefined)
 
       try {
-        const { default: mermaid } = await import('mermaid')
+        const { default: mermaid } = await loadMermaid()
         mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme })
         const { svg: renderedSvg } = await mermaid.render(`mermaid-${id}`, code)
         if (active) {
