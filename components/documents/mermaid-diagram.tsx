@@ -31,8 +31,8 @@ function preserveDiagramWidth(renderedSvg: string) {
   const naturalWidth = svg?.style.maxWidth
 
   if (svg && naturalWidth && /^\d+(?:\.\d+)?px$/.test(naturalWidth)) {
-    svg.style.width = naturalWidth
-    svg.style.maxWidth = 'none'
+    svg.style.setProperty('--mermaid-natural-width', naturalWidth)
+    svg.style.removeProperty('max-width')
   }
 
   return template.innerHTML
@@ -97,7 +97,7 @@ export function MermaidDiagram({ title, code }: MermaidDiagramProps) {
       <div
         aria-label={title}
         aria-busy={svg ? undefined : true}
-        className="min-w-max p-4 [&_svg]:h-auto [&_svg]:max-w-none"
+        className="min-w-max p-4 md:min-w-0 [&_svg]:h-auto [&_svg]:w-[var(--mermaid-natural-width)] [&_svg]:max-w-none md:[&_svg]:w-full md:[&_svg]:max-w-[var(--mermaid-natural-width)]"
         dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}
         role="img"
       />

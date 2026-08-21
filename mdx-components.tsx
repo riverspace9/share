@@ -10,7 +10,14 @@ import {
   SourceReference,
 } from '@/components/documents'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Table } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export function useMDXComponents(components: MDXComponents = {}): MDXComponents {
   return {
@@ -37,6 +44,11 @@ export function useMDXComponents(components: MDXComponents = {}): MDXComponents 
         <Table {...props} />
       </ScrollArea>
     ),
+    thead: (props: React.ComponentProps<'thead'>) => <TableHeader {...props} />,
+    tbody: (props: React.ComponentProps<'tbody'>) => <TableBody {...props} />,
+    tr: (props: React.ComponentProps<'tr'>) => <TableRow {...props} />,
+    th: (props: React.ComponentProps<'th'>) => <TableHead {...props} />,
+    td: (props: React.ComponentProps<'td'>) => <TableCell {...props} />,
     pre: (props: React.ComponentProps<'pre'>) => (
       <ScrollArea className="w-full rounded-lg bg-muted">
         <pre className="p-4 font-mono text-sm" {...props} />

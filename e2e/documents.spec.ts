@@ -62,6 +62,11 @@ test('재고 문서 직접 경로를 새로고침한 뒤 흐름과 단계, 정�
   await page.reload()
 
   await expect(page.getByRole('heading', { name: '재고 입출고 흐름' })).toBeVisible()
+  const prefixHeader = page.getByRole('columnheader', { name: '접두어' })
+  await expect(prefixHeader).toBeVisible()
+  await expect
+    .poll(() => prefixHeader.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeGreaterThanOrEqual(40)
   await expect(page.getByRole('tab')).toHaveCount(5)
   await expect(
     page.getByRole('img', { name: '재고 입출고 테이블 관계' }).locator('svg')
@@ -75,6 +80,26 @@ test('재고 문서 직접 경로를 새로고침한 뒤 흐름과 단계, 정�
   await reorderCheckbox.check()
   await expect(reorderCheckbox).toBeChecked()
   await expect(page.getByTestId('schema-table').first()).toContainText('변경')
+})
+
+test('데스크톱에서 재고 테이블 관계도가 첫 화면 너비 안에 표시된다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', '데스크톱 viewport 전용 검사')
+
+  await page.goto('/share/documents/inventory-flow/')
+
+  const diagram = page.getByRole('img', { name: '재고 입출고 테이블 관계' })
+  const viewport = diagram.locator('xpath=ancestor::*[@data-slot="scroll-area-viewport"]')
+  await expect(diagram.locator('svg')).toBeVisible()
+  await expect
+    .poll(async () => {
+      const [diagramWidth, viewportWidth] = await Promise.all([
+        diagram.locator('svg').evaluate((svg) => svg.clientWidth),
+        viewport.evaluate((element) => element.clientWidth),
+      ])
+
+      return diagramWidth <= viewportWidth
+    })
+    .toBe(true)
 })
 
 test('존재하지 않는 문서 경로는 실제 404 응답과 복귀 링크를 제공한다', async ({ page }) => {

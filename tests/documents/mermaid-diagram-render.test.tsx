@@ -69,7 +69,7 @@ describe('MermaidDiagram 렌더링', () => {
     })
   })
 
-  it('초기화와 렌더링 결과 SVG를 문서에 적용한다', async () => {
+  it('초기화와 렌더링 결과 SVG의 자연 너비를 반응형 레이아웃에 전달한다', async () => {
     render(<MermaidDiagram title="계산 흐름" code={'flowchart LR\nA-->B'} />)
 
     await waitFor(() => expect(renderMermaid).toHaveBeenCalledTimes(1))
@@ -80,7 +80,8 @@ describe('MermaidDiagram 렌더링', () => {
       theme: 'default',
     })
     const svg = screen.getByRole('img', { name: '계산 흐름' }).querySelector('svg')
-    expect(svg).toHaveStyle({ maxWidth: 'none', width: '960px' })
+    expect(svg?.style.getPropertyValue('--mermaid-natural-width')).toBe('960px')
+    expect(svg).not.toHaveStyle({ maxWidth: 'none', width: '960px' })
   })
 
   it('넓은 다이어그램을 위한 가로 스크롤 영역을 제공한다', async () => {
