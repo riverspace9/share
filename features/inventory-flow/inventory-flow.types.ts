@@ -50,11 +50,18 @@ export interface InventoryScenarioText {
   lines: readonly string[]
 }
 
+export interface InventoryScenarioCell {
+  content: string
+  colSpan?: number
+}
+
+export type InventoryScenarioCellValue = string | InventoryScenarioCell
+
 export interface InventoryScenarioTable {
   type: 'table'
   title?: string
   columns: readonly string[]
-  rows: readonly (readonly string[])[]
+  rows: readonly (readonly InventoryScenarioCellValue[])[]
 }
 
 export type InventoryScenarioBlock =

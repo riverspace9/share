@@ -18,13 +18,61 @@ describe('재고 입출고 탐색기', () => {
   })
 
   it('전체 흐름 행으로 단계를 선택하고 미구현 내용을 표시한다', () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
     render(<InventoryFlowExplorer />)
 
-    fireEvent.click(screen.getByRole('button', { name: '전체 흐름에서 4. 상품 출고 선택' }))
+    fireEvent.click(screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ }))
 
     expect(screen.getByRole('heading', { name: '상품 출고' })).toBeInTheDocument()
     expect(screen.getAllByText('미구현').length).toBeGreaterThan(0)
     expect(screen.getByText(/지금은 출고 전표를 만들지 않는다/)).toBeInTheDocument()
+  })
+
+  it('전체 흐름의 담당자 셀을 눌러 단계를 선택하고 표 위치로 이동한다', () => {
+    const scrollIntoView = vi.fn()
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    render(<InventoryFlowExplorer />)
+
+    const row = screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ })
+    fireEvent.click(within(row).getByRole('cell', { name: '협력사 담당자' }))
+
+    expect(screen.getByRole('heading', { name: '상품 출고' })).toBeInTheDocument()
+    expect(scrollIntoView).toHaveBeenCalledOnce()
+  })
+
+  it('전체 흐름 행을 키보드로 선택하고 표 위치로 이동한다', () => {
+    const scrollIntoView = vi.fn()
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    render(<InventoryFlowExplorer />)
+
+    const enterRow = screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ })
+    const spaceRow = screen.getByRole('row', { name: /5\. 배송 완료.*협력사 담당자/ })
+    expect(enterRow).toHaveAttribute('tabindex', '0')
+
+    fireEvent.keyDown(enterRow, { key: 'Enter' })
+    expect(screen.getByRole('heading', { name: '상품 출고' })).toBeInTheDocument()
+
+    fireEvent.keyDown(spaceRow, { key: ' ' })
+    expect(screen.getByRole('heading', { name: '배송 완료' })).toBeInTheDocument()
+    expect(scrollIntoView).toHaveBeenCalledTimes(2)
+  })
+
+  it('시나리오 비교표의 공통 값을 두 열에 걸쳐 표시한다', () => {
+    render(<InventoryFlowExplorer />)
+
+    fireEvent.click(screen.getByRole('tab', { name: '물류센터 입고' }))
+    expect(screen.getByRole('cell', { name: '같다. 지점이 찍고 입고를 완료할 때' })).toHaveAttribute(
+      'colspan',
+      '2'
+    )
+    expect(screen.getByRole('cell', { name: '같다. 입고 스캔 세션 하나를 쓴다' })).toHaveAttribute(
+      'colspan',
+      '2'
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: /근조기ㆍ축기/ }))
+    expect(screen.getByRole('cell', { name: '같다. InventoryStocks.qty' })).toHaveAttribute('colspan', '2')
+    expect(screen.getByRole('cell', { name: '같다. qty - reserved_qty' })).toHaveAttribute('colspan', '2')
   })
 
   it('변경 테이블 이동과 위 정렬을 제공한다', () => {

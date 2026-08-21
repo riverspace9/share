@@ -1,4 +1,13 @@
-export const inventoryFlowDiagram = `flowchart LR
+export const inventoryFlowDiagram = `---
+config:
+  themeCSS: |
+    .accent > rect { fill: var(--accent) !important; stroke: var(--accent-foreground) !important; }
+    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
+    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
+    .accent .label, .success .label, .warning .label { color: var(--foreground) !important; }
+    .accent .label text, .success .label text, .warning .label text { fill: var(--foreground) !important; }
+---
+flowchart LR
   FO["FevFlowerOrders
 화환 주문"]
   FOI["FevFlowerOrderItems
@@ -41,12 +50,9 @@ export const inventoryFlowDiagram = `flowchart LR
   SS -->|"1 : N"| SE
   SS -->|"receipt_id"| RC
   UN -->|"last_issue_id"| IS
-  classDef p fill:#EEEDFE,stroke:#7F77DD,stroke-width:1.5px,color:#26215C
-  classDef t fill:#E1F5EE,stroke:#1D9E75,stroke-width:1.5px,color:#04342C
-  classDef i fill:#FAECE7,stroke:#D85A30,stroke-width:1.5px,color:#4A1B0C
-  class FO,FOI p
-  class TR,TRI,TRU t
-  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH i`
+  class FO,FOI accent
+  class TR,TRI,TRU success
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH warning`
 
 export const consignmentFeeDiagram = `flowchart LR
   A[기본 탁송비] --> B[수량 확인]

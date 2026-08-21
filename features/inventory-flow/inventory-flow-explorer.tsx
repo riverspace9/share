@@ -48,12 +48,21 @@ function ScenarioBlock({ block }: { block: InventoryScenarioBlock }) {
         </TableHeader>
         <TableBody>
           {block.rows.map((row, rowIndex) => (
-            <TableRow key={`${rowIndex}-${row.join('-')}`}>
-              {row.map((cell, cellIndex) => (
-                <TableCell key={`${cellIndex}-${cell}`} className="whitespace-normal">
-                  {cell}
-                </TableCell>
-              ))}
+            <TableRow key={rowIndex}>
+              {row.map((cell, cellIndex) => {
+                const content = typeof cell === 'string' ? cell : cell.content
+                const colSpan = typeof cell === 'string' ? undefined : cell.colSpan
+
+                return (
+                  <TableCell
+                    key={`${cellIndex}-${content}`}
+                    colSpan={colSpan}
+                    className="whitespace-normal"
+                  >
+                    {content}
+                  </TableCell>
+                )
+              })}
             </TableRow>
           ))}
         </TableBody>
@@ -79,6 +88,7 @@ export function InventoryFlowExplorer() {
   const [stepIndex, setStepIndex] = React.useState(0)
   const [reorderChanged, setReorderChanged] = React.useState(false)
   const [highlightedIdentifier, setHighlightedIdentifier] = React.useState<string>()
+  const overviewRef = React.useRef<HTMLDivElement>(null)
   const flow = inventoryFlows[flowIndex]
   const step = flow.steps[stepIndex]
   const snapshot = React.useMemo(
@@ -99,6 +109,18 @@ export function InventoryFlowExplorer() {
   function selectStep(index: number) {
     setStepIndex(index)
     setHighlightedIdentifier(undefined)
+  }
+
+  function selectOverviewStep(index: number) {
+    selectStep(index)
+    overviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function handleOverviewKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, index: number) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      selectOverviewStep(index)
+    }
   }
 
   function scrollToTable(table: InventoryTableName) {
@@ -189,7 +211,7 @@ export function InventoryFlowExplorer() {
         </aside>
       ) : null}
 
-      <div className="rounded-xl border">
+      <div ref={overviewRef} className="scroll-mt-20 rounded-xl border">
         <div className="border-b px-4 py-3 text-sm font-semibold">
           전체 흐름. 줄을 누르면 그 단계로 이동한다
         </div>
@@ -203,17 +225,21 @@ export function InventoryFlowExplorer() {
           </TableHeader>
           <TableBody>
             {flow.steps.map((candidate, index) => (
-              <TableRow key={`${candidate.no}-${candidate.name}`} data-state={index === stepIndex ? 'selected' : undefined}>
+              <TableRow
+                key={`${candidate.no}-${candidate.name}`}
+                tabIndex={0}
+                aria-label={`전체 흐름에서 ${candidate.no}. ${candidate.name} 선택. 담당자 ${candidate.actor}`}
+                aria-selected={index === stepIndex}
+                data-state={index === stepIndex ? 'selected' : undefined}
+                onClick={() => selectOverviewStep(index)}
+                onKeyDown={(event) => handleOverviewKeyDown(event, index)}
+                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <TableCell>
-                  <button
-                    type="button"
-                    aria-label={`전체 흐름에서 ${candidate.no}. ${candidate.name} 선택`}
-                    onClick={() => selectStep(index)}
-                    className="text-left font-medium hover:underline"
-                  >
+                  <span className="font-medium">
                     {candidate.no}. {candidate.name}
                     {candidate.todo ? <Badge variant="destructive" className="ml-2">미구현</Badge> : null}
-                  </button>
+                  </span>
                 </TableCell>
                 <TableCell>{candidate.actor}</TableCell>
                 <TableCell className="whitespace-normal">

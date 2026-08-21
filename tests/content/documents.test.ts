@@ -14,4 +14,12 @@ describe('문서 레지스트리', () => {
     expect(findDocument('missing-document')).toBeUndefined()
     expect(documentHref('inventory-flow')).toBe('/documents/inventory-flow/')
   })
+
+  it('JSX를 포함한 실제 MDX 문서 모듈을 불러온다', async () => {
+    const document = findDocument('inventory-flow')
+    const documentModule = await document?.load()
+
+    expect(documentModule?.documentMeta.slug).toBe('inventory-flow')
+    expect(documentModule?.default).toEqual(expect.any(Function))
+  })
 })

@@ -1384,11 +1384,17 @@ export const inventoryFlows: readonly InventoryFlowDefinition[] = [
           ],
           [
             "유닛이 생기는 시점",
-            "같다. 지점이 찍고 입고를 완료할 때"
+            {
+              "content": "같다. 지점이 찍고 입고를 완료할 때",
+              "colSpan": 2
+            }
           ],
           [
             "화면",
-            "같다. 입고 스캔 세션 하나를 쓴다"
+            {
+              "content": "같다. 입고 스캔 세션 하나를 쓴다",
+              "colSpan": 2
+            }
           ]
         ]
       },
@@ -1895,11 +1901,17 @@ export const inventoryFlows: readonly InventoryFlowDefinition[] = [
         "rows": [
           [
             "현재고",
-            "같다. InventoryStocks.qty"
+            {
+              "content": "같다. InventoryStocks.qty",
+              "colSpan": 2
+            }
           ],
           [
             "가용재고",
-            "같다. qty - reserved_qty"
+            {
+              "content": "같다. qty - reserved_qty",
+              "colSpan": 2
+            }
           ],
           [
             "바코드 낱개 추적",
