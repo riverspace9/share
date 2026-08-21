@@ -1,13 +1,4 @@
-export const inventoryFlowDiagram = `---
-config:
-  themeCSS: |
-    .accent > rect { fill: var(--accent) !important; stroke: var(--accent-foreground) !important; }
-    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
-    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
-    .accent .label, .success .label, .warning .label { color: var(--foreground) !important; }
-    .accent .label text, .success .label text, .warning .label text { fill: var(--foreground) !important; }
----
-flowchart LR
+export const inventoryFlowDiagram = `flowchart LR
   FO["FevFlowerOrders
 화환 주문"]
   FOI["FevFlowerOrderItems
@@ -50,19 +41,11 @@ flowchart LR
   SS -->|"1 : N"| SE
   SS -->|"receipt_id"| RC
   UN -->|"last_issue_id"| IS
-  class FO,FOI accent
-  class TR,TRI,TRU success
-  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH warning`
+  class FO,FOI diagram-flower
+  class TR,TRI,TRU diagram-transfer
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH diagram-inventory`
 
-export const inventoryHeaderItemDiagram = `---
-config:
-  themeCSS: |
-    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
-    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
-    .success .label, .warning .label { color: var(--foreground) !important; }
-    .success .label text, .warning .label text { fill: var(--foreground) !important; }
----
-flowchart LR
+export const inventoryHeaderItemDiagram = `flowchart LR
   IS["InventoryIssues
 전표 1행"] -->|"1 : N"| ISI["InventoryIssueItems
 품목 N행"]
@@ -75,20 +58,10 @@ flowchart LR
   AU["InventoryAudits
 실사 1행"] -->|"1 : N"| AUI["InventoryAuditItems
 품목 N행"]
-  class TR,TRI success
-  class IS,ISI,RC,RCI,AU,AUI warning`
+  class TR,TRI diagram-transfer
+  class IS,ISI,RC,RCI,AU,AUI diagram-inventory`
 
-export const inventoryTransferBoundaryDiagram = `---
-config:
-  themeCSS: |
-    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
-    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
-    .success .label, .warning .label { color: var(--foreground) !important; }
-    .success .label text, .warning .label text { fill: var(--foreground) !important; }
-    .cluster rect { fill: var(--card) !important; stroke: var(--border) !important; }
-    .cluster-label text, .cluster-label span { fill: var(--foreground) !important; color: var(--foreground) !important; }
----
-flowchart TD
+export const inventoryTransferBoundaryDiagram = `flowchart TD
   TR["InvTransfers
 이동 지시"] -->|"issue_id"| IS
   TR -->|"receipt_id"| RC
@@ -100,8 +73,8 @@ flowchart TD
     IS["InventoryIssues
 상차 때 생성"]
   end
-  class TR success
-  class IS,RC warning`
+  class TR diagram-transfer
+  class IS,RC diagram-inventory`
 
 export const consignmentFeeDiagram = `flowchart LR
   A[기본 탁송비] --> B[수량 확인]

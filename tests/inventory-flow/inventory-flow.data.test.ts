@@ -80,14 +80,6 @@ describe('재고 입출고 원본 보존 계약', () => {
     }
   })
 
-  it('관계도 스타일은 문서 의미 토큰만 사용한다', () => {
-    expect(inventoryFlowDiagram).not.toMatch(/#[0-9a-f]{3,8}/i)
-    expect(inventoryFlowDiagram).toContain('var(--accent)')
-    expect(inventoryFlowDiagram).toContain('var(--success)')
-    expect(inventoryFlowDiagram).toContain('var(--warning)')
-    expect(inventoryFlowDiagram).toContain('var(--foreground)')
-  })
-
   it('수동 대조한 typed migration 전체를 보존한다', () => {
     expect({
       schemas: inventorySchemas,

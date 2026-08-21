@@ -1,16 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`재고 입출고 원본 보존 계약 > 수동 대조한 Mermaid 노드, 연결, 그룹, 스타일을 보존한다 1`] = `
-"---
-config:
-  themeCSS: |
-    .accent > rect { fill: var(--accent) !important; stroke: var(--accent-foreground) !important; }
-    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
-    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
-    .accent .label, .success .label, .warning .label { color: var(--foreground) !important; }
-    .accent .label text, .success .label text, .warning .label text { fill: var(--foreground) !important; }
----
-flowchart LR
+"flowchart LR
   FO["FevFlowerOrders
 화환 주문"]
   FOI["FevFlowerOrderItems
@@ -53,9 +44,9 @@ flowchart LR
   SS -->|"1 : N"| SE
   SS -->|"receipt_id"| RC
   UN -->|"last_issue_id"| IS
-  class FO,FOI accent
-  class TR,TRI,TRU success
-  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH warning"
+  class FO,FOI diagram-flower
+  class TR,TRI,TRU diagram-transfer
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH diagram-inventory"
 `;
 
 exports[`재고 입출고 원본 보존 계약 > 수동 대조한 typed migration 전체를 보존한다 1`] = `

@@ -155,24 +155,28 @@ export function InventoryFlowTable({
                           return (
                             <TableCell
                               key={column}
-                              className={cn(
-                                'font-mono text-xs',
-                                isChanged && 'bg-warning/20 text-warning'
-                              )}
+                              className="font-mono text-xs"
                             >
-                              {isSharedIdentifier ? (
-                                <button
-                                  type="button"
-                                  aria-pressed={highlightedIdentifier === value}
-                                  onClick={() => onIdentifierClick(value)}
-                                  className={cn(
-                                    'rounded px-1 underline decoration-dotted underline-offset-2',
-                                    highlightedIdentifier === value && 'bg-accent text-accent-foreground'
-                                  )}
-                                >
-                                  {value}
-                                </button>
-                              ) : value}
+                              <div className="flex items-center gap-1">
+                                {isSharedIdentifier ? (
+                                  <button
+                                    type="button"
+                                    aria-pressed={highlightedIdentifier === value}
+                                    onClick={() => onIdentifierClick(value)}
+                                    className="rounded px-1 hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                                  >
+                                    {value}
+                                  </button>
+                                ) : value}
+                                {isChanged ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="h-5 border-primary/50 bg-primary/10 px-1.5 text-[11px] font-semibold text-primary"
+                                  >
+                                    변경
+                                  </Badge>
+                                ) : null}
+                              </div>
                             </TableCell>
                           )
                         })}
