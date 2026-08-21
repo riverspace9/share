@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
 import { compile } from '@mdx-js/mdx'
+import remarkGfm from 'remark-gfm'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -15,6 +16,7 @@ export default defineConfig({
 
         const compiled = await compile(source, {
           providerImportSource: '@mdx-js/react',
+          remarkPlugins: [remarkGfm],
         })
 
         return {
