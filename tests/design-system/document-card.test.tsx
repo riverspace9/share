@@ -53,4 +53,23 @@ describe('DocumentLayout', () => {
     expect(screen.getByText('재고')).toBeVisible()
     expect(screen.getByText('문서 본문')).toBeVisible()
   })
+
+  it('문서 목록 breadcrumb에 Next basePath를 적용한다', () => {
+    render(
+      <DocumentLayout
+        title="재고 입출고 흐름"
+        summary="재고 이동 상태와 기준"
+        updatedAt="2026-08-21"
+        tags={['재고', '입출고']}
+      >
+        <p>문서 본문</p>
+      </DocumentLayout>
+    )
+
+    expect(screen.getByRole('link', { name: '문서' })).toHaveAttribute('href', '/share/')
+    expect(screen.getByRole('link', { name: '문서' })).toHaveAttribute(
+      'data-next-link',
+      'true'
+    )
+  })
 })

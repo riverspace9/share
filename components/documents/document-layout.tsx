@@ -1,4 +1,5 @@
 import * as React from 'react'
+import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -31,7 +32,9 @@ export function DocumentLayout({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/documents/">문서</BreadcrumbLink>
+            <BreadcrumbLink asChild>
+              <Link href="/">문서</Link>
+            </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
