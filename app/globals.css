@@ -52,6 +52,15 @@
   --success-foreground: #EAF3DE;
   --warning: #854F0B;
   --warning-foreground: #FAEEDA;
+  --diagram-flower-fill: #EEEDFE;
+  --diagram-flower-stroke: #7F77DD;
+  --diagram-flower-text: #26215C;
+  --diagram-transfer-fill: #E1F5EE;
+  --diagram-transfer-stroke: #1D9E75;
+  --diagram-transfer-text: #04342C;
+  --diagram-inventory-fill: #FAECE7;
+  --diagram-inventory-stroke: #D85A30;
+  --diagram-inventory-text: #4A1B0C;
   --border: #e3e1db;
   --input: var(--border);
   --ring: var(--primary);
@@ -80,6 +89,15 @@
     --success-foreground: #27500A;
     --warning: #EF9F27;
     --warning-foreground: #633806;
+    --diagram-flower-fill: #3C3489;
+    --diagram-flower-stroke: #AFA9EC;
+    --diagram-flower-text: #EEEDFE;
+    --diagram-transfer-fill: #27500A;
+    --diagram-transfer-stroke: #97C459;
+    --diagram-transfer-text: #EAF3DE;
+    --diagram-inventory-fill: #633806;
+    --diagram-inventory-stroke: #EF9F27;
+    --diagram-inventory-text: #FAEEDA;
     --border: #33333a;
     --input: var(--border);
     --ring: var(--primary);
@@ -94,4 +112,40 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
+}
+
+.mermaid-diagram .diagram-flower > rect {
+  fill: var(--diagram-flower-fill) !important;
+  stroke: var(--diagram-flower-stroke) !important;
+}
+
+.mermaid-diagram .diagram-transfer > rect {
+  fill: var(--diagram-transfer-fill) !important;
+  stroke: var(--diagram-transfer-stroke) !important;
+}
+
+.mermaid-diagram .diagram-inventory > rect {
+  fill: var(--diagram-inventory-fill) !important;
+  stroke: var(--diagram-inventory-stroke) !important;
+}
+
+.mermaid-diagram .diagram-flower .label {
+  color: var(--diagram-flower-text) !important;
+}
+
+.mermaid-diagram .diagram-transfer .label {
+  color: var(--diagram-transfer-text) !important;
+}
+
+.mermaid-diagram .diagram-inventory .label {
+  color: var(--diagram-inventory-text) !important;
+}
+
+.mermaid-diagram .cluster rect {
+  fill: var(--card) !important;
+  stroke: var(--border) !important;
+}
+
+.mermaid-diagram .cluster-label span {
+  color: var(--foreground) !important;
 }

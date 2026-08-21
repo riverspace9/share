@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 
 import { inventoryFlows } from './inventory-flow.data'
 import { buildInventorySnapshot } from './inventory-flow.reducer'
@@ -132,24 +133,20 @@ export function InventoryFlowExplorer() {
   return (
     <section className="my-8 space-y-6" aria-label="재고 입출고 흐름 탐색기">
       <Tabs value={String(flowIndex)} onValueChange={selectFlow}>
-        <TabsList className="h-auto max-w-full flex-wrap justify-start" variant="line">
+        <TabsList className="h-auto w-full flex-wrap justify-start" variant="button">
           {inventoryFlows.map((candidate, index) => (
             <TabsTrigger
               key={candidate.name}
               value={String(index)}
               onClick={() => selectFlow(String(index))}
               aria-label={index === 0 ? '일반 배송 흐름' : candidate.name}
-              className="h-auto min-h-8 whitespace-normal px-3 py-2 text-left"
+              className="min-w-40 whitespace-normal text-center"
             >
               {candidate.name}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-
-      <p className="rounded-lg border-l-4 border-primary bg-secondary p-4 leading-7">
-        {flow.description}
-      </p>
 
       <div data-testid="inventory-scenario" className="space-y-4 rounded-xl border bg-card p-4">
         {flow.scenario.map((block, index) => (
@@ -162,14 +159,20 @@ export function InventoryFlowExplorer() {
           <Button
             key={`${candidate.no}-${candidate.name}`}
             type="button"
+            size="step"
             variant={index === stepIndex ? 'default' : 'outline'}
             onClick={() => selectStep(index)}
             aria-label={`${candidate.no}단계 ${candidate.name}`}
-            className="h-auto min-w-32 flex-col items-start py-3"
           >
             <span className="text-xs opacity-75">{candidate.no}단계</span>
             <span>{candidate.name}</span>
-            {candidate.todo ? <Badge variant="destructive">미구현</Badge> : null}
+            <Badge
+              aria-hidden={candidate.todo ? undefined : true}
+              className={cn(!candidate.todo && 'invisible')}
+              variant="destructive"
+            >
+              미구현
+            </Badge>
           </Button>
         ))}
       </div>
@@ -198,7 +201,7 @@ export function InventoryFlowExplorer() {
         ) : null}
         {step.todo ? (
           <div className="mt-4 rounded-lg bg-destructive/10 p-4 text-sm leading-6 text-destructive">
-            <b className="mb-1 block">미구현</b>
+            <b className="mb-1 block">아직 구현되지 않았다</b>
             {step.todo}
           </div>
         ) : null}
@@ -210,7 +213,10 @@ export function InventoryFlowExplorer() {
         </aside>
       ) : null}
 
-      <div ref={overviewRef} className="scroll-mt-20 rounded-xl border">
+      <div
+        ref={overviewRef}
+        className="scroll-mt-20 overflow-hidden rounded-xl border"
+      >
         <div className="border-b px-4 py-3 text-sm font-semibold">
           전체 흐름. 줄을 누르면 그 단계로 이동한다
         </div>

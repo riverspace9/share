@@ -97,7 +97,7 @@ export function MermaidDiagram({ title, code }: MermaidDiagramProps) {
       <div
         aria-label={title}
         aria-busy={svg ? undefined : true}
-        className="min-w-max p-4 md:min-w-0 [&_svg]:h-auto [&_svg]:w-[var(--mermaid-natural-width)] [&_svg]:max-w-none md:[&_svg]:w-full md:[&_svg]:max-w-[var(--mermaid-natural-width)]"
+        className="mermaid-diagram min-w-max p-4 md:min-w-0 [&_svg]:h-auto [&_svg]:w-[var(--mermaid-natural-width)] [&_svg]:max-w-none md:[&_svg]:w-full md:[&_svg]:max-w-[var(--mermaid-natural-width)]"
         dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}
         role="img"
       />

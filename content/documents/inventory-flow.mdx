@@ -1,46 +1,33 @@
 import { Callout, MermaidDiagram } from '@/components/documents'
 import {
-  inventoryFlowDiagram,
   inventoryHeaderItemDiagram,
   inventoryTransferBoundaryDiagram,
 } from '@/content/diagrams'
 import { InventoryFlowExplorer } from '@/features/inventory-flow/inventory-flow-explorer'
+import { InventoryRelationshipOverview } from '@/features/inventory-flow/inventory-relationship-overview'
 
 export const documentMeta = {
   slug: 'inventory-flow',
   title: '재고 입출고 흐름',
   summary: '재고 이동과 입출고 상태 흐름',
-  updatedAt: '2026-08-21',
+  updatedAt: '2026-08-22',
   order: 10,
   tags: ['재고', '입출고'],
 }
 
-이슈 829 설계 기준입니다. 모든 단계가 구현된 상태를 그리고, 아직 구현되지 않은 단계에는 `미구현`을 표시합니다. 해당 단계를 선택하면 현재 코드의 동작도 함께 표시합니다.
+이슈 829 설계 기준. 모든 단계가 구현된 상태를 그리고, 아직 구현되지 않은 단계에는 `미구현` 을 붙인다. 그 단계를 누르면 지금 코드가 무엇을 하는지 나온다.
 
-<Callout variant="info" title="원칙">
-회사에서 재고가 나가면 출고이고, 들어오면 입고입니다. 나가고 들어오는 이유는 구분하지 않습니다. 따라서 탁송의 마지막 단계와 비탁송은 같은 코드를 사용합니다.
+<Callout variant="info">
+회사에서 재고가 나가면 **출고**, 들어오면 **입고**. 나가고 들어오는 이유는 구분하지 않는다. 그래서 탁송의 마지막 단계와 비탁송이 같은 코드가 된다.
 </Callout>
 
-## 0. 테이블 관계
-
-| 구분 | 접두어 | 테이블 |
-|---|---|---|
-| 플라워 | `FevFlowerOrder*` | `FevFlowerOrders`, `FevFlowerOrderItems` |
-| 재고 이관 | `InvTransfer*` | `InvTransfers`, `InvTransferItems`, `InvTransferItemUnits` |
-| 재고: 실물 | `Inventory*` | `InventoryStocks`, `InventoryUnits` |
-| 재고: 기준수량 | `Inventory*` | `InventoryBaseQtyHistory` |
-| 재고: 출고 전표 | `Inventory*` | `InventoryIssues`, `InventoryIssueItems` |
-| 재고: 입고 스캔 | `Inventory*` | `InventoryScanSessions`, `InventoryScanEvents` |
-| 재고: 실사 | `Inventory*` | `InventoryAudits`, `InventoryAuditItems` |
-| 재고: 입고 전표 | `Inventory*` | `InventoryReceipts`, `InventoryReceiptItems` |
-
-<MermaidDiagram code={inventoryFlowDiagram} title="재고 입출고 테이블 관계" />
+<InventoryRelationshipOverview />
 
 ## 1. 개념
 
 ### 현재 상태와 발생한 사건을 다른 테이블에 나눈다
 
-재고 테이블은 지금 몇 개가 있는지를 저장하는 테이블과 나가고 들어온 사건을 기록하는 테이블로 나뉩니다. 이 구분이 첫 번째 기준입니다.
+재고 테이블은 두 종류다. 지금 몇 개가 있는지를 저장하는 테이블과, 나가고 들어온 사건을 기록하는 테이블이다. 이 구분이 첫 번째 기준이다.
 
 | 역할 | 테이블 |
 |---|---|
@@ -54,34 +41,29 @@ export const documentMeta = {
 
 | 구분 | 테이블 | 내용 |
 |---|---|---|
-| 현재 재고 | `InventoryStocks`, `InventoryUnits` | 보유 수량과 보유 실물 |
-| 출고 | `InventoryIssues`, `InventoryIssueItems` | 출고 전표 |
-| 입고 | `InventoryReceipts`, `InventoryReceiptItems` | 입고 전표 |
-| 이동 지시 | `InvTransfers`, `InvTransferItems`, `InvTransferItemUnits` | 출발 회사와 도착 회사 |
-| 작업 절차 | `InventoryScanSessions`, `InventoryScanEvents`, `InventoryAudits`, `InventoryAuditItems` | 스캔과 실사 진행 기록 |
+| 현재 재고 | `InventoryStocks · InventoryUnits` | 보유 수량과 보유 실물 |
+| 출고 | `InventoryIssues + Items` | 출고 전표 |
+| 입고 | `InventoryReceipts + Items` | 입고 전표 |
+| 이동 지시 | `InvTransfers + Items + ItemUnits` | 출발 회사와 도착 회사 |
+| 작업 절차 | `InventoryScanSessions + Events · InventoryAudits + Items` | 스캔과 실사 진행 기록 |
 
-출고를 유발한 주문인 `FevFlowerOrders`, `FevFlowerOrderItems`와 기준수량 변경 이력인 `InventoryBaseQtyHistory`를 더해 16개입니다.
+여기에 `FevFlowerOrders` + `FevFlowerOrderItems`(출고를 유발한 주문)와 `InventoryBaseQtyHistory`(기준수량 변경 이력)를 더해 16개다.
 
 ### 헤더와 품목 행으로 나뉜 구조가 넷이다
 
-출고, 입고, 이동, 실사는 같은 구조입니다. 헤더 1행이 사건 1건이고 품목 행이 그 사건에 포함된 품목입니다. 헤더에는 주체, 시각, 대상 회사가 있고 품목 행에는 품목코드와 수량이 있습니다.
-
-- `InventoryIssues` 1행은 `InventoryIssueItems` N행을 가집니다.
-- `InventoryReceipts` 1행은 `InventoryReceiptItems` N행을 가집니다.
-- `InvTransfers` 1행은 `InvTransferItems` N행을 가집니다.
-- `InventoryAudits` 1행은 `InventoryAuditItems` N행을 가집니다.
+넷이 같은 구조다. 헤더 1행이 사건 1건이고 품목 행이 그 사건에 포함된 품목이다. 헤더에는 주체와 시각과 대상 회사가 있고, 품목 행에는 품목코드와 수량이 있다.
 
 <MermaidDiagram code={inventoryHeaderItemDiagram} title="헤더와 품목 행 관계" />
 
 ### 핵심 관계는 이동이 전표 두 건을 참조하는 것이다
 
-회사 사이 이동 1건은 출고 전표 1건과 입고 전표 1건을 만듭니다. 출발 회사에서 나간 사건과 도착 회사로 들어온 사건이 별개로 기록되고, `InvTransfers.issue_id`와 `InvTransfers.receipt_id`가 두 전표를 참조합니다.
+회사 사이 이동 1건은 출고 전표 1건과 입고 전표 1건을 만든다. 출발 회사에서 나간 사건과 도착 회사로 들어온 사건이 별개로 기록되고, `InvTransfers`가 두 전표를 참조한다.
 
 <MermaidDiagram code={inventoryTransferBoundaryDiagram} title="회사 사이 이동과 출고ㆍ입고 전표 관계" />
 
 ### 보유 재고를 수량 단위와 개별 단위로 나눠 저장한다
 
-조사용품은 QR이 부착되어 있어 수량뿐 아니라 어느 바코드를 보유했는지까지 저장합니다. 근조기ㆍ축기는 QR이 없어 수량만 저장합니다. 따라서 조사용품에만 `InventoryUnits` 행이 존재합니다.
+조사용품은 QR이 부착되어 있어 수량뿐 아니라 어느 바코드를 보유했는지까지 저장한다. 근조기ㆍ축기는 QR이 없어 수량만 저장한다. 그래서 조사용품에만 `InventoryUnits` 행이 존재한다.
 
 | 테이블 | 단위 | 대상 |
 |---|---|---|
@@ -90,41 +72,45 @@ export const documentMeta = {
 
 ### 현재고는 재고유형과 무관하게 InventoryStocks.qty로 통일한다
 
-두 재고유형이 같은 컬럼을 현재고로 읽고, 예약과 차감도 같은 컬럼을 봅니다. `base_qty`는 지점별로 몇 개를 두어야 하는지를 정한 목표치이고 현재고를 만들지 않습니다.
+두 재고유형이 같은 컬럼을 현재고로 읽고, 예약과 차감도 같은 컬럼을 본다. `base_qty`는 지점별로 몇 개를 두어야 하는지를 정한 목표치로만 남고 현재고를 만들지 않는다.
 
-| 항목 | 조사용품 | 근조기ㆍ축기 |
+| | 조사용품 | 근조기ㆍ축기 |
 |---|---|---|
 | 현재고 | `InventoryStocks.qty` | `InventoryStocks.qty` |
 | 가용재고 | `qty - reserved_qty` | `qty - reserved_qty` |
 | `base_qty` | 미사용 | 보유 목표치 |
 
-<Callout variant="warning" title="미구현">
-근조기ㆍ축기 재고 화면은 `base_qty - 사용수량`을 현재고로 계산합니다(`ceremonial-flag-inventory.service.ts:155`, `:286`). `qty`를 늘리는 경로가 근조기에 없어 dev 재고 8,236행 중 `qty > 0`인 행은 1,807행입니다. 반면 이동 예약은 유형 구분 없이 `qty - reserved_qty`를 봅니다(`inventory-transfer.service.ts:931`). 근조기가 담긴 탁송 주문은 상품 준비 처리에서 막힙니다. 통일하려면 화면 산출식을 `qty`로 교체하고, 반납 입고의 `qty` 증가, `CONSUME` 출고의 `qty` 차감, 실사 완료의 근조기 `qty` 반영을 구현해야 합니다. 기존 행은 `base_qty - 사용수량`으로 한 번 채웁니다.
+<Callout variant="warning" title="아직 구현되지 않았다">
+근조기ㆍ축기 재고 화면은 `base_qty - 사용수량`을 현재고로 계산한다(`ceremonial-flag-inventory.service.ts:155`, `:286`). `qty`를 늘리는 경로가 근조기에 없어 dev 재고 8,236행 중 `qty > 0`인 행이 1,807행이다. 반면 이동 예약은 유형 구분 없이 `qty - reserved_qty`를 보므로(`inventory-transfer.service.ts:931`), 근조기가 담긴 탁송 주문은 상품 준비 처리에서 막힌다. 통일에 필요한 것은 넷이다. 화면 산출식을 `qty`로 교체, 반납 입고의 `qty` 증가, `CONSUME` 출고의 `qty` 차감, 실사 완료의 근조기 `qty` 반영. 기존 행은 `base_qty - 사용수량`으로 한 번 채운다.
 </Callout>
 
 ### 출고와 입고를 별도 테이블로 둔 근거
 
-이동 테이블 하나에 유형 컬럼을 두는 설계도 성립합니다. 이 설계에도 일부 적용되어 있습니다. `InvTransfers.transfer_type`은 `TRANSFER` 또는 `DELIVERY`이고 `destination_company_id`는 nullable이므로, 도착 회사가 없는 자사 배송을 그 조합으로 표현합니다.
+이동 테이블 하나에 유형 컬럼을 두는 설계도 성립한다. 이 설계에도 일부 적용되어 있다. `InvTransfers.transfer_type`(`TRANSFER` / `DELIVERY`)이 있고 `destination_company_id`는 nullable이므로, 도착 회사가 없는 자사 배송을 그 조합으로 표현한다.
 
-전표를 별도로 둔 직접적인 이유는 `InventoryReceipts`가 이미 존재한다는 점입니다. 이 테이블은 2026-07-02부터 존재하고 입고 스캔 화면이 연결되어 있습니다. 이슈 829는 없던 출고 쪽을 대칭으로 추가하는 범위이며 두 테이블을 통합하는 범위는 아닙니다.
+그럼에도 전표를 별도로 둔 직접적 이유는 **`InventoryReceipts`가 이미 존재했다는 것**이다. 이 테이블은 2026-07-02부터 있었고 입고 스캔 화면이 여기에 연결되어 있다. 이슈 829는 없던 출고 쪽을 대칭으로 추가한 작업이고, 두 테이블의 통합 여부를 재검토한 작업이 아니다.
 
-| 항목 | 입고 전표 | 출고 전표 |
+통합을 어렵게 하는 구조적 차이는 셋이다.
+
+| | 입고 전표 | 출고 전표 |
 |---|---|---|
 | 상태 | 기본값 `IN_PROGRESS`. 스캔 진행 중에는 미완료 상태 | 기본값 `COMPLETED`. 생성 시점에 완료 |
 | 채번 | `receipt_no` | `issue_no` |
 | 연결 테이블 | `InventoryScanSessions.receipt_id` | `InventoryUnits.last_issue_id` |
 
-한 테이블로 통합하면 `IN_PROGRESS`가 출고 행에서 의미 없는 값이 되고 채번도 유형별로 분리해야 합니다. 스캔 세션은 입고에만 연결되고 출고에는 스캔 절차가 없습니다.
+한 테이블로 통합하면 `IN_PROGRESS`가 출고 행에서 의미 없는 값이 되고, 채번도 유형별로 분리해야 한다. 스캔 세션은 입고에만 연결되고 출고에는 스캔 절차가 없다.
 
-전표는 회사 하나를 기준으로 1건씩 생성됩니다. 상대 회사가 우리 회사이면 2건이고, 아니면 1건입니다. 물류센터는 `OrgCompanies`에 등록하지만 재고를 우리가 관리하지 않습니다. 따라서 물류센터가 상대 회사인 입고에는 출고 전표가 생기지 않습니다. 물류센터가 우리 화면에서 출고를 기록하는 절차가 없기 때문입니다.
+전표를 분리한 결과로 기록 규칙이 단순해진다. **전표는 회사 하나를 기준으로 1건씩 생성된다.** 상대 회사가 우리 회사이면 2건, 아니면 1건이다.
+
+물류센터는 `OrgCompanies`에 등록하지만 재고를 우리가 관리하지 않는다. 그래서 상대 회사가 우리 회사인데도 출고 전표가 생기지 않는다. 물류센터가 우리 화면에서 출고를 찍는 절차가 없기 때문이다.
 
 | 사건 | 출고 전표 | 입고 전표 |
 |---|---|---|
-| 지점에서 지점으로 탁송 | 출발 지점에 1건 (`TRANSFER`) | 도착 지점에 1건 (`TRANSFER`) |
-| 지점에서 장례식장으로 배송 | 1건 (`CONSUME`) | 없음 |
-| 물류센터에서 지점으로 입고 | 없음 | 1건 (`TRANSFER`) |
+| 지점 → 지점 (탁송) | 출발 지점에 1건 (`TRANSFER`) | 도착 지점에 1건 (`TRANSFER`) |
+| 지점 → 장례식장 (배송) | 1건 (`CONSUME`) | 없음 |
+| 물류센터 → 지점 (입고) | 없음 | 1건 (`TRANSFER`) |
 
-근조기ㆍ축기 사용수량은 `issue_type = 'CONSUME'`인 전표만 집계합니다. 지점 간 이동(`TRANSFER`)은 회사 외부로 나간 것이 아니므로 사용수량에 포함하지 않습니다.
+이 구분이 실제로 사용되는 예가 근조기ㆍ축기 사용수량이다. 지점 간 이동(`TRANSFER`)은 회사 외부로 나간 것이 아니므로 사용수량에 포함하지 않는다. 현재는 `issue_type`이 `CONSUME`인지만 확인하면 되고, 이동 테이블 하나로 관리했다면 도착 회사 유무로 매번 판별해야 한다.
 
 ## 2. 흐름 탐색
 
@@ -132,20 +118,16 @@ export const documentMeta = {
 
 ## 상태 값
 
-- `InvTransfers.status`: `PREPARING` / `IN_TRANSIT` / `COMPLETED` / `CANCELLED`
-- `InvTransfers.transfer_type`: `TRANSFER`(지점 간) / `DELIVERY`(자사 배송)
-- `InventoryUnits.status`: `IN_STOCK` / `RESERVED` / `IN_TRANSIT` / `CONSUMED`
-- `inventory_type`: `FUNERAL_SUPPLIES` / `CONDOLENCE_FLAG` / `CONGRATULATORY_FLAG`
-- `InventoryIssues.issue_type`: `TRANSFER`(회사 간 이동) / `CONSUME`(외부로 나감)
-- `InventoryReceipts.receipt_type`: `EXTERNAL` / `RETURN` / `TRANSFER`
-- `FevFlowerOrders.order_status`: `ORDERED` / `CONFIRMED` / `DELIVERING` / `DELIVERED` / `CANCELLED`
-- `consignment_type`: `DEPARTURE` / `ARRIVAL` / `null`(비탁송)
-- `InventoryScanEvents.result_code`: `NORMAL` / `EXCESS` / `UNPLANNED` / `UNKNOWN_ITEM` / `DUPLICATE`
+`InvTransfers.status` `PREPARING` / `IN_TRANSIT` / `COMPLETED` / `CANCELLED` · `InvTransfers.transfer_type` `TRANSFER`(지점 간) / `DELIVERY`(자사 배송)<br />
+`InventoryUnits.status` `IN_STOCK` / `RESERVED` / `IN_TRANSIT` / `CONSUMED` · `inventory_type` `FUNERAL_SUPPLIES` / `CONDOLENCE_FLAG` / `CONGRATULATORY_FLAG`<br />
+`InventoryIssues.issue_type` `TRANSFER`(회사 간 이동) / `CONSUME`(외부로 나감) · `InventoryReceipts.receipt_type` `EXTERNAL` / `RETURN` / `TRANSFER`<br />
+`FevFlowerOrders.order_status` `ORDERED` / `CONFIRMED` / `DELIVERING` / `DELIVERED` / `CANCELLED` · `consignment_type` `DEPARTURE` / `ARRIVAL` / `null`(비탁송)<br />
+`InventoryScanEvents.result_code` `NORMAL` / `EXCESS` / `UNPLANNED` / `UNKNOWN_ITEM` / `DUPLICATE`
 
-현재고는 재고유형과 무관하게 `InventoryStocks.qty`입니다. 가용재고는 `qty - reserved_qty`이며 두 유형이 같습니다. 근조기ㆍ축기의 `base_qty`와 조사용품의 `min_qty`(화면 라벨 '안전 재고')는 몇 개 있어야 하는지를 정한 목표치이고 현재고를 만들지 않습니다. 모자라면 그만큼 채우는 방식입니다. 근조기ㆍ축기는 화면에서 `잔여 < 기준`일 때 입고 버튼을 활성화하고 조사용품은 물류센터가 보충을 판단합니다. 커머스의 안전재고처럼 발주량을 따로 계산하거나 미달 경고를 내지 않습니다. 두 컬럼의 통합은 후속 과제입니다.
+**현재고는 재고유형과 무관하게 `InventoryStocks.qty` 다.** 가용재고는 `qty - reserved_qty` 이고 이것도 두 유형이 같다. 근조기ㆍ축기의 `base_qty` 와 조사용품의 `min_qty`(화면 라벨 '안전 재고')는 둘 다 **몇 개 있어야 하는지를 정한 목표치**이고 현재고를 만들지 않는다. 모자라면 그만큼 채우는 방식이라 성격이 같다. 근조기·축기는 우리 화면이 판정해 `잔여 < 기준`일 때 입고 버튼을 활성화하고, 조사용품은 물류센터가 판정해 보충한다. 커머스의 안전재고처럼 발주량을 따로 계산하거나 미달 경고를 내지 않는다. 두 컬럼을 하나로 합치는 것은 뒤로 미뤄 둔 과제다.
 
-근조기ㆍ축기 사용수량은 확정 출고 합에서 확정 반납입고 합을 뺀 값이며 얼마나 나갔는지를 보여주는 기록입니다. 출고는 `issue_type = 'CONSUME'` 전표만 집계하고 `TRANSFER`는 회사 사이 이동이므로 집계하지 않습니다. 반납은 완료된 입고 전표를 유형과 무관하게 모두 차감합니다. `RETURN`만 집계하도록 제한하지 않아 탁송 하차가 만드는 `TRANSFER` 입고 전표도 함께 차감됩니다. 옛 출고 테이블인 `FsmsSupplyShipments`는 재고에서 읽지 않고 실적의 인력지원 건수 원장으로 남아 있습니다.
+**근조기ㆍ축기 사용수량**은 확정 출고 합에서 확정 반납입고 합을 뺀 값이고 얼마나 나갔는지를 보여주는 기록이다. 출고는 `issue_type = 'CONSUME'` 전표만 세고 TRANSFER 는 회사 사이 이동이라 세지 않는다. 반납은 완료된 입고 전표를 유형과 무관하게 전부 차감한다. RETURN 만 세도록 좁혀져 있지 않아 탁송 하차가 만드는 TRANSFER 입고 전표도 함께 차감된다. 옛 출고 테이블(`FsmsSupplyShipments`)은 재고가 더 이상 읽지 않고, 실적의 인력지원 건수 원장으로 남아 있다.
 
-수량과 실물은 층이 다릅니다. `InventoryStocks.qty`는 품목별 현재고이고 `InventoryUnits`는 조사용품 바코드 한 개가 한 행입니다. 유닛은 그 수량 안의 어느 실물이 어디 있는지를 가리키며 별도의 재고 셈이 아닙니다. 두 값이 다르면 실사가 `qty`를 실물에 맞춥니다.
+**수량과 실물은 층이 다르다.** `InventoryStocks.qty` 가 품목별 현재고이고, `InventoryUnits` 는 조사용품 바코드 한 개가 한 행이다. 유닛은 그 수량 안의 어느 실물이 어디 있는지를 가리키는 것이지 별도의 재고 셈이 아니다. 두 값이 어긋나면 실사가 `qty` 를 실물에 맞춘다.
 
-재고유형은 전표 헤더가 아니라 품목 행이 가집니다. 한 이동에 조사용품과 근조기가 섞일 수 있으므로 전표 한 건이 유형이 다른 품목을 함께 담습니다.
+**재고유형은 전표 헤더가 아니라 품목 행이 갖는다.** 한 이동에 조사용품과 근조기가 섞일 수 있으므로, 전표 한 건이 유형이 다른 품목을 함께 담는다.
