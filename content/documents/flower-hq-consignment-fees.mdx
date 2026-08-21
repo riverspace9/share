@@ -1,0 +1,173 @@
+import {
+  Callout,
+  DataTable,
+  DecisionTable,
+  FormulaCard,
+  MermaidDiagram,
+  SourceReference,
+} from '@/components/documents'
+import { consignmentFeeDiagram, deliveryFeeLookupDiagram } from '@/content/diagrams'
+
+export const documentMeta = {
+  slug: 'flower-hq-consignment-fees',
+  title: '본부 탁송 비용 계산',
+  summary: '상차 탁송비와 하차 배송비 계산 기준',
+  updatedAt: '2026-08-21',
+  order: 20,
+  tags: ['플라워', '탁송', '배송비'],
+}
+
+이 문서는 HJW 본부 주문에 공통 계산기를 연결할 때 적용할 탁송비와 배송비 기준을 설명합니다. 현재 backend에는 공통 계산기와 FSMS 호출부가 있고 HJW 호출부는 연결되지 않았습니다.
+
+<Callout variant="warning" title="HJW 연결 전 확인">
+활성 본부 판정 기준은 `OrgCompanies.legacy_bp_group IN ('M10','M20')`입니다. `M10`은 직영본부, `M20`은 위탁본부입니다. 공통 계산기는 회사 유형을 판정하지 않으므로 HJW 호출부가 활성 본부를 검증하고 계산 입력을 만들어야 합니다.
+</Callout>
+
+## 1. 비용을 저장하는 주문
+
+<DataTable
+  columns={['비용', '저장 주문', '계산 기준', '구역 영향']}
+  rows={[
+    ['탁송비', '탁송 상차 주문', '탁송 대상 실물 품목 수량 합계', '없음'],
+    ['배송비', '일반배송 주문 또는 탁송 하차 주문', '배송 수행 회사ㆍ배송지ㆍ품목 종류와 수량', 'DLVY_ZONE1'],
+  ]}
+  caption="탁송비와 배송비의 책임 구분"
+/>
+
+상차 탁송비와 하차 배송비는 품목 합계와 분리된 비용입니다. FSMS는 `FevFlowerOrderCharges`에 상차 탁송비를 `CONSIGNMENT_FEE`, 하차 배송비를 `DELIVERY_FEE`로 저장합니다.
+
+## 2. 상차 탁송비
+
+탁송 대상 실물 품목의 수량을 모두 더한 값이 계산단위수입니다. 배송비 품목은 계산단위수에서 제외합니다. 각 수량은 양의 정수여야 하고 합계가 0이면 계산하지 않습니다.
+
+<FormulaCard
+  title="상차 탁송비"
+  formula="25,000 + (계산단위수 - 1) × 10,000"
+  description="첫 계산단위는 25,000원이고 이후 계산단위마다 10,000원을 더합니다."
+  examples={[
+    ['1개', '25,000원'],
+    ['2개', '35,000원'],
+    ['5개', '65,000원'],
+  ]}
+/>
+
+<MermaidDiagram code={consignmentFeeDiagram} title="상차 탁송비 계산 흐름" />
+
+## 3. 하차 배송비
+
+하차 본부의 `legacyBpCode`와 발주의 `dlvyCd`로 배송료 구역을 찾습니다. 배송지코드에서 `REGION_CD`를 구하고 `(BP_CD, REGION_CD)`가 같은 행의 `DLVY_ZONE1`을 사용합니다. 품목 단가는 해당 본부의 `BP_CD` 행을 먼저 사용하고, 없으면 공통 `BP_CD='*'` 행을 사용합니다.
+
+<MermaidDiagram code={deliveryFeeLookupDiagram} title="하차 배송비 조회 흐름" />
+
+### 품목 분류와 단가
+
+<DataTable
+  columns={['분류', '현재 코드 분류', '단가와 계산']}
+  rows={[
+    ['A01 조사용품', '품목코드 앞 3자리 A01', '화환이 없으면 기본료와 추가료, 화환이 있으면 초과 수량의 추가료'],
+    ['화환', 'B01ㆍB02ㆍB03ㆍB04ㆍB05ㆍB06ㆍB08ㆍB09ㆍB10ㆍB11ㆍB12ㆍB13ㆍB15ㆍB21', 'A01 추가 수량을 줄이는 수량으로 사용'],
+    ['C03 근조기', '품목코드 앞 3자리 C03', "DLVY_ZONE1='1'의 기본료를 수량이 있으면 한 번 추가"],
+    ['C04 축기', '품목코드 앞 3자리 C04', "DLVY_ZONE1='1'의 기본료를 수량이 있으면 한 번 추가"],
+  ]}
+  caption="현재 공통 계산기의 배송비 품목 분류"
+/>
+
+```text
+화환 수량 = 0
+A01 비용 = A01 기본료 + max(A01 수량 - 1, 0) × A01 추가료
+
+화환 수량 > 0
+A01 비용 = max(A01 수량 - 화환 수량, 0) × A01 추가료
+
+C03 수량 > 0
+C03 비용 = C03 1구역 기본료 1회
+
+C04 수량 > 0
+C04 비용 = C04 1구역 기본료 1회
+
+배송비 = A01 비용 + C03 비용 + C04 비용
+```
+
+<Callout variant="info" title="미산정과 0원의 구분">
+`null`은 경로나 필수 단가가 없어 계산하지 못한 상태입니다. `0`은 계산을 끝낸 정상 0원입니다. FSMS 호출부는 결과가 `null`일 때만 배송비 행을 만들지 않으므로 0원 결과는 비용 행으로 저장합니다.
+</Callout>
+
+## 4. 확정 기준과 HJW 확인 대기 항목
+
+<DecisionTable
+  title="본부 비용 계산 결정 사항"
+  rows={[
+    {
+      item: '본부 적용 대상',
+      status: 'CONFIRMED',
+      detail: "활성 OrgCompanies 중 legacy_bp_group IN ('M10','M20')인 본부만 HJW 호출부가 입력으로 허용합니다.",
+    },
+    {
+      item: '요율 선택 순서',
+      status: 'CONFIRMED',
+      detail: "하차 본부 BP_CD와 일치하는 요율을 먼저 사용하고, 없으면 BP_CD='*' 요율을 사용합니다.",
+    },
+    {
+      item: 'C03ㆍC04 배송료 구역',
+      status: 'CONFIRMED',
+      detail: "두 품목군은 DLVY_ZONE1='1' 요율을 사용합니다. 레거시 호환 동작이며 업무상 이유는 확인되지 않았습니다.",
+    },
+    {
+      item: '계산 결과 의미',
+      status: 'CONFIRMED',
+      detail: 'null은 미산정이고 0은 정상 0원입니다.',
+    },
+    {
+      item: '본부 입력ㆍ경로ㆍ단가 누락 처리',
+      status: 'PENDING',
+      detail: 'HJW가 주문을 계속 만들지, 비용 보정을 요구할지, 요청을 거부할지 결정해야 합니다.',
+    },
+    {
+      item: 'C04 가격',
+      status: 'PENDING',
+      detail: '조사 시점에 C04 가격 행이 없습니다. 무료로 간주하지 않고 가격 데이터 또는 업무 정책을 확정해야 합니다.',
+    },
+    {
+      item: '추가 품목군',
+      status: 'PENDING',
+      detail: 'A23ㆍE31ㆍF10ㆍF20은 현재 공통 계산기의 배송비 분류에 없습니다. HJW 계산에 포함할지 결정해야 합니다.',
+    },
+    {
+      item: '재산정ㆍ정산 제한',
+      status: 'PENDING',
+      detail: '미산정 비용을 다시 계산하는 시점과 미산정 주문의 정산을 제한할지 결정해야 합니다.',
+    },
+  ]}
+/>
+
+## 5. 구현 소스
+
+<SourceReference
+  title="탁송비 공통 계산기"
+  href="https://github.com/thepsyentist/hyunjin-backend/blob/develop/src/modules/orders/flower/flower-order-consignment-fee.ts"
+  description="계산단위수 검증과 25,000원ㆍ10,000원 산식"
+/>
+
+<SourceReference
+  title="배송비 공통 계산기"
+  href="https://github.com/thepsyentist/hyunjin-backend/blob/develop/src/modules/orders/flower/flower-order-delivery-fee.ts"
+  description="A01ㆍ화환ㆍC03ㆍC04 분류와 기본료ㆍ추가료 계산"
+/>
+
+<SourceReference
+  title="배송비 조회 resolver"
+  href="https://github.com/thepsyentist/hyunjin-backend/blob/develop/src/modules/orders/flower/flower-order-delivery-fee-resolver.ts"
+  description="배송지 지역, 배송료 구역, 본부별 요율과 공통 요율 조회"
+/>
+
+<SourceReference
+  title="FSMS 플라워 주문 접수"
+  href="https://github.com/thepsyentist/hyunjin-backend/blob/develop/src/modules/fsms/flower-orders/flower-orders.service.ts"
+  description="상차ㆍ하차 주문별 비용 계산과 FevFlowerOrderCharges 저장 호출부"
+/>
+
+<SourceReference
+  title="FSMS 플라워 배송비 계산 정책"
+  href="https://github.com/riverspace9/hj-command-center/blob/main/wiki/파트너스/플라워-주문-접수/배송비-계산.md"
+  description="HJW 적용 대상, 호출부 책임, 레거시 근거와 확인 대기 정책"
+/>

@@ -1,0 +1,2342 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`재고 입출고 원본 보존 계약 > 수동 대조한 Mermaid 노드, 연결, 그룹, 스타일을 보존한다 1`] = `
+"---
+config:
+  themeCSS: |
+    .accent > rect { fill: var(--accent) !important; stroke: var(--accent-foreground) !important; }
+    .success > rect { fill: var(--success-foreground) !important; stroke: var(--success) !important; }
+    .warning > rect { fill: var(--warning-foreground) !important; stroke: var(--warning) !important; }
+    .accent .label, .success .label, .warning .label { color: var(--foreground) !important; }
+    .accent .label text, .success .label text, .warning .label text { fill: var(--foreground) !important; }
+---
+flowchart LR
+  FO["FevFlowerOrders
+화환 주문"]
+  FOI["FevFlowerOrderItems
+주문 품목"]
+  TR["InvTransfers
+이동 지시서"]
+  TRI["InvTransferItems
+이동 품목"]
+  TRU["InvTransferItemUnits
+품목과 바코드 연결"]
+  ST["InventoryStocks
+회사·품목별 보유 수량"]
+  UN["InventoryUnits
+조사용품 낱개"]
+  IS["InventoryIssues
+출고 전표"]
+  ISI["InventoryIssueItems
+출고 품목"]
+  BQH["InventoryBaseQtyHistory
+기준수량 변경 이력"]
+  SS["InventoryScanSessions
+입고 QR 스캔 세션"]
+  SE["InventoryScanEvents
+스캔 1건"]
+  RC["InventoryReceipts
+입고 전표"]
+  RCI["InventoryReceiptItems
+입고 품목"]
+  FO -->|"1 : N"| FOI
+  TR -->|"1 : N"| TRI
+  TRI -->|"1 : N"| TRU
+  IS -->|"1 : N"| ISI
+  ST -->|"1 : N"| BQH
+  RC -->|"1 : N"| RCI
+  FO -->|"inventory_transfer_id"| TR
+  FOI -->|"inventory_stock_id"| ST
+  TR -->|"issue_id"| IS
+  TR -->|"receipt_id"| RC
+  TRU -->|"inventory_unit_id"| UN
+  SS -->|"1 : N"| SE
+  SS -->|"receipt_id"| RC
+  UN -->|"last_issue_id"| IS
+  class FO,FOI accent
+  class TR,TRI,TRU success
+  class ST,UN,IS,ISI,RC,RCI,SS,SE,BQH warning"
+`;
+
+exports[`재고 입출고 원본 보존 계약 > 수동 대조한 typed migration 전체를 보존한다 1`] = `
+{
+  "flows": [
+    {
+      "base": [
+        [
+          "InventoryStocks",
+          "ST-1",
+          {
+            "base_qty": "null",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "qty": "5",
+            "reserved_qty": "0",
+            "stock_id": "ST-1",
+          },
+        ],
+        [
+          "InventoryStocks",
+          "ST-2",
+          {
+            "base_qty": "10",
+            "company_id": "서울지점",
+            "inventory_type": "CONDOLENCE_FLAG",
+            "item_cd": "B0201001",
+            "qty": "10",
+            "reserved_qty": "0",
+            "stock_id": "ST-2",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-1",
+          {
+            "barcode": "BC-1001",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-1",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-2",
+          {
+            "barcode": "BC-1002",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-2",
+          },
+        ],
+      ],
+      "description": "서울지점이 자기 재고로 장례식장에 배송한다. 재고가 바뀌는 시점은 출고 한 번뿐이다.",
+      "name": "비탁송 (일반 배송)",
+      "scenario": [
+        {
+          "text": "주문 내용",
+          "type": "heading",
+        },
+        {
+          "lines": [
+            "현진웹 발주번호 PO-2026-0001",
+            "배송 경로 서울지점 → OO장례식장",
+            "서울지점이 자기 재고로 바로 배송한다. 재고이동은 자사 배송(DELIVERY)으로 만들어지고 도착사가 없다.",
+          ],
+          "type": "text",
+        },
+        {
+          "columns": [
+            "품목코드",
+            "품목명",
+            "재고유형",
+            "단위",
+            "수량",
+            "재고 추적",
+          ],
+          "rows": [
+            [
+              "A0100010",
+              "[조사용품] 현진시닝(300인분)",
+              "FUNERAL_SUPPLIES",
+              "BOX",
+              "2",
+              "바코드 낱개 (BC-1001, BC-1002)",
+            ],
+            [
+              "B0201001",
+              "근조기",
+              "CONDOLENCE_FLAG",
+              "EA",
+              "3",
+              "수량만. 현재고는 기준수량에서 사용수량을 뺀 값이다",
+            ],
+          ],
+          "type": "table",
+        },
+      ],
+      "steps": [
+        {
+          "actor": "현진웹 (행사관리)",
+          "api": "POST /v1/fsms/partners/flower/hjw-orders",
+          "description": "현진웹에서 발주가 확정되면 FSMS로 넘어온다. 주문 1건과 함께 자사 배송 이동(DELIVERY)이 만들어진다. 수량 예약은 다음 단계다.",
+          "name": "발주 확정 접수",
+          "no": "1",
+          "note": "비탁송도 InvTransfers 행을 만드는 것이 이 설계의 핵심이다. 자료구조를 탁송과 하나로 맞춰야 뒤 단계 코드가 같아진다.",
+          "operations": [
+            {
+              "identifier": "FO-1",
+              "table": "FevFlowerOrders",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "consignment_type": "null",
+                "inventory_transfer_id": "TR-1",
+                "order_id": "FO-1",
+                "order_no": "PO-2026-0001",
+                "order_status": "ORDERED",
+              },
+            },
+            {
+              "identifier": "FOI-1",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-1",
+                "flower_order_item_id": "FOI-1",
+                "inventory_stock_id": "ST-1",
+                "item_code_snapshot": "A0100010",
+                "item_name_snapshot": "[조사용품] 현진시닝(300인분)",
+                "line_no_snapshot": "1",
+                "quantity_snapshot": "2",
+                "unit_snapshot": "BOX",
+              },
+            },
+            {
+              "identifier": "FOI-2",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-1",
+                "flower_order_item_id": "FOI-2",
+                "inventory_stock_id": "ST-2",
+                "item_code_snapshot": "B0201001",
+                "item_name_snapshot": "근조기",
+                "line_no_snapshot": "2",
+                "quantity_snapshot": "3",
+                "unit_snapshot": "EA",
+              },
+            },
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "INSERT",
+              "values": {
+                "destination_company_id": "null",
+                "issue_id": "null",
+                "receipt_id": "null",
+                "source_company_id": "서울지점",
+                "status": "PREPARING",
+                "transfer_id": "TR-1",
+                "transfer_type": "DELIVERY",
+              },
+            },
+            {
+              "identifier": "TI-1",
+              "table": "InvTransferItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "requested_qty": "2",
+                "transfer_id": "TR-1",
+                "transfer_item_id": "TI-1",
+              },
+            },
+            {
+              "identifier": "TI-2",
+              "table": "InvTransferItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "item_cd": "B0201001",
+                "requested_qty": "3",
+                "transfer_id": "TR-1",
+                "transfer_item_id": "TI-2",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.create",
+          "todo": "Task 7. 지금은 비탁송 주문이 InvTransfers 행을 만들지 않는다. createTransferInTransaction 호출이 탁송 분기 안에만 있다(flower-orders.service.ts:1116).",
+        },
+        {
+          "actor": "협력사 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/confirm",
+          "description": "주문 상태가 바뀌고 근조기 수량이 예약된다. qty 는 그대로이고 reserved_qty 만 오른다. 가용재고는 qty - reserved_qty 다.",
+          "name": "상품 준비",
+          "no": "2",
+          "note": "수량 단위로 예약하는 것은 근조기ㆍ축기다. 조사용품은 이 단계를 건너뛰고 3단계에서 바코드 낱개마다 예약된다(inventory-transfer.service.ts:111). 예약은 qty - reserved_qty >= 요청수량 일 때만 통과한다(:931).",
+          "operations": [
+            {
+              "identifier": "FO-1",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "CONFIRMED",
+              },
+            },
+            {
+              "identifier": "ST-2",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "reserved_qty": "3",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.confirm",
+          "todo": "Task 7. 지금은 비탁송 confirm 이 주문 상태만 바꾸고 수량 예약이 없다. 근조기 재고 행은 qty 가 0인 경우가 많아, 예약이 붙으면 그대로는 통과하지 않는다. 현재고를 qty 로 통일하는 작업이 선행되어야 한다.",
+        },
+        {
+          "actor": "협력사 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/item-verifications",
+          "description": "조사용품 바코드를 스캔해 어느 실물 유닛을 내보낼지 정한다. 조사용품도 수량은 InventoryStocks에 있고, 이 단계는 그중 어느 낱개인지를 정하는 것이다. 근조기는 유닛 행이 없어 이 단계를 거치지 않는다.",
+          "name": "품목 확인 QR",
+          "no": "3",
+          "operations": [
+            {
+              "identifier": "TU-1",
+              "table": "InvTransferItemUnits",
+              "type": "INSERT",
+              "values": {
+                "id": "TU-1",
+                "inventory_unit_id": "U-1",
+                "transfer_item_id": "TI-1",
+                "unloaded_at": "null",
+              },
+            },
+            {
+              "identifier": "TU-2",
+              "table": "InvTransferItemUnits",
+              "type": "INSERT",
+              "values": {
+                "id": "TU-2",
+                "inventory_unit_id": "U-2",
+                "transfer_item_id": "TI-1",
+                "unloaded_at": "null",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "status": "RESERVED",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "status": "RESERVED",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "reserved_qty": "2",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.verifyItems",
+          "todo": "Task 8. 지금은 비탁송이 InvTransferItemUnits 가 아니라 FevFlowerOrderItemUnits 에 기록한다. 수량 예약도 이 시점에 바코드마다 1씩 걸린다(inventory-unit.service.ts:68).",
+        },
+        {
+          "actor": "협력사 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/ship",
+          "derived": [
+            [
+              "근조기 현재고(qty)",
+              "10 → 7",
+            ],
+            [
+              "근조기 기준수량",
+              "10",
+            ],
+            [
+              "근조기 사용수량",
+              "0 → 3",
+            ],
+          ],
+          "description": "회사에서 재고가 나간다. 출고 전표를 남긴다. 외부로 나가는 것이므로 issue_type은 CONSUME이다.",
+          "name": "상품 출고",
+          "no": "4",
+          "note": "전표 한 건이 조사용품 품목과 근조기 품목을 함께 담는다. 재고유형은 전표 헤더가 아니라 품목 행이 갖는다. 두 유형 모두 qty 가 줄고 예약이 풀린다. 근조기는 여기에 더해 이 CONSUME 전표가 사용수량 3을 만든다.",
+          "operations": [
+            {
+              "identifier": "FO-1",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERING",
+              },
+            },
+            {
+              "identifier": "ISS-1",
+              "table": "InventoryIssues",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "issue_id": "ISS-1",
+                "issue_type": "CONSUME",
+                "issued_at": "2026-08-20 10:12",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "II-1",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "issue_id": "ISS-1",
+                "issue_item_id": "II-1",
+                "item_cd": "A0100010",
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "II-2",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "issue_id": "ISS-1",
+                "issue_item_id": "II-2",
+                "item_cd": "B0201001",
+                "qty": "3",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-1",
+                "status": "CONSUMED",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-1",
+                "status": "CONSUMED",
+              },
+            },
+            {
+              "identifier": "ST-2",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "7",
+                "reserved_qty": "0",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "3",
+                "reserved_qty": "0",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.ship",
+          "todo": "Task 9. 지금은 출고 전표를 만들지 않는다. 조사용품 유닛만 CONSUMED 로 옮기고 수량을 1씩 뺀다. 근조기·축기는 아무 처리도 일어나지 않아 나간 사실이 어디에도 남지 않는다.",
+        },
+        {
+          "actor": "협력사 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/deliver",
+          "description": "상태 전이만 일어난다. 재고 차감은 4단계에서 끝났다.",
+          "name": "배송 완료",
+          "no": "5",
+          "operations": [
+            {
+              "identifier": "FO-1",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERED",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.deliver",
+        },
+      ],
+    },
+    {
+      "base": [
+        [
+          "InventoryStocks",
+          "ST-1",
+          {
+            "base_qty": "null",
+            "company_id": "부산지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "qty": "5",
+            "reserved_qty": "0",
+            "stock_id": "ST-1",
+          },
+        ],
+        [
+          "InventoryStocks",
+          "ST-2",
+          {
+            "base_qty": "10",
+            "company_id": "부산지점",
+            "inventory_type": "CONDOLENCE_FLAG",
+            "item_cd": "B0201001",
+            "qty": "10",
+            "reserved_qty": "0",
+            "stock_id": "ST-2",
+          },
+        ],
+        [
+          "InventoryStocks",
+          "ST-3",
+          {
+            "base_qty": "null",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "qty": "0",
+            "reserved_qty": "0",
+            "stock_id": "ST-3",
+          },
+        ],
+        [
+          "InventoryStocks",
+          "ST-4",
+          {
+            "base_qty": "10",
+            "company_id": "서울지점",
+            "inventory_type": "CONDOLENCE_FLAG",
+            "item_cd": "B0201001",
+            "qty": "0",
+            "reserved_qty": "0",
+            "stock_id": "ST-4",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-1",
+          {
+            "barcode": "BC-1001",
+            "company_id": "부산지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-1",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-2",
+          {
+            "barcode": "BC-1002",
+            "company_id": "부산지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-2",
+          },
+        ],
+      ],
+      "description": "출발 지점에서 도착 지점으로 보낸 뒤, 도착 지점이 장례식장에 배송한다. 재고가 바뀌는 시점이 셋이다. 출고(상차) → 입고(하차) → 출고(배송).",
+      "name": "탁송 (부산지점 → 서울지점 → 장례식장)",
+      "scenario": [
+        {
+          "text": "주문 내용",
+          "type": "heading",
+        },
+        {
+          "lines": [
+            "현진웹 발주번호 PO-2026-0002",
+            "배송 경로 부산지점 → 서울지점 → OO장례식장",
+            "서울지점에 재고가 없어 부산지점에서 보낸다. 재고이동은 지점 간 이동(TRANSFER)이고 도착사가 서울지점이다.",
+          ],
+          "type": "text",
+        },
+        {
+          "columns": [
+            "품목코드",
+            "품목명",
+            "재고유형",
+            "단위",
+            "수량",
+            "재고 추적",
+          ],
+          "rows": [
+            [
+              "A0100010",
+              "[조사용품] 현진시닝(300인분)",
+              "FUNERAL_SUPPLIES",
+              "BOX",
+              "2",
+              "바코드 낱개 (BC-1001, BC-1002)",
+            ],
+            [
+              "B0201001",
+              "근조기",
+              "CONDOLENCE_FLAG",
+              "EA",
+              "3",
+              "수량만. 현재고는 기준수량에서 사용수량을 뺀 값이다",
+            ],
+          ],
+          "type": "table",
+        },
+      ],
+      "steps": [
+        {
+          "actor": "현진웹 (행사관리)",
+          "api": "POST /v1/fsms/partners/flower/hjw-orders",
+          "description": "주문이 두 건 생긴다. 출발 지점 주문(DEPARTURE)과 도착 지점 주문(ARRIVAL)이고, 둘 다 같은 이동을 가리킨다. 이동만 만들고 수량 예약은 하지 않는다.",
+          "name": "발주 확정 접수",
+          "no": "1",
+          "note": "주문 품목은 네 행이다. 출발 지점 주문과 도착 지점 주문이 같은 품목 스냅샷을 각각 갖는다. 두 주문의 inventory_stock_id 는 모두 출발사(부산지점) 재고 행을 가리킨다. 재고가 나가는 회사가 출발사이기 때문이다. 이동을 만들 때 reserveQuantityItems 를 false 로 넘기므로 예약은 2단계로 미뤄진다(flower-orders.service.ts:1125).",
+          "operations": [
+            {
+              "identifier": "FO-D",
+              "table": "FevFlowerOrders",
+              "type": "INSERT",
+              "values": {
+                "company_id": "부산지점",
+                "consignment_type": "DEPARTURE",
+                "inventory_transfer_id": "TR-1",
+                "order_id": "FO-D",
+                "order_no": "PO-2026-0002",
+                "order_status": "ORDERED",
+              },
+            },
+            {
+              "identifier": "FO-A",
+              "table": "FevFlowerOrders",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "consignment_type": "ARRIVAL",
+                "inventory_transfer_id": "TR-1",
+                "order_id": "FO-A",
+                "order_no": "PO-2026-0002",
+                "order_status": "ORDERED",
+              },
+            },
+            {
+              "identifier": "FOI-D1",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-D",
+                "flower_order_item_id": "FOI-D1",
+                "inventory_stock_id": "ST-1",
+                "item_code_snapshot": "A0100010",
+                "item_name_snapshot": "[조사용품] 현진시닝(300인분)",
+                "line_no_snapshot": "1",
+                "quantity_snapshot": "2",
+                "unit_snapshot": "BOX",
+              },
+            },
+            {
+              "identifier": "FOI-D2",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-D",
+                "flower_order_item_id": "FOI-D2",
+                "inventory_stock_id": "ST-2",
+                "item_code_snapshot": "B0201001",
+                "item_name_snapshot": "근조기",
+                "line_no_snapshot": "2",
+                "quantity_snapshot": "3",
+                "unit_snapshot": "EA",
+              },
+            },
+            {
+              "identifier": "FOI-A1",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-A",
+                "flower_order_item_id": "FOI-A1",
+                "inventory_stock_id": "ST-1",
+                "item_code_snapshot": "A0100010",
+                "item_name_snapshot": "[조사용품] 현진시닝(300인분)",
+                "line_no_snapshot": "1",
+                "quantity_snapshot": "2",
+                "unit_snapshot": "BOX",
+              },
+            },
+            {
+              "identifier": "FOI-A2",
+              "table": "FevFlowerOrderItems",
+              "type": "INSERT",
+              "values": {
+                "flower_order_id": "FO-A",
+                "flower_order_item_id": "FOI-A2",
+                "inventory_stock_id": "ST-2",
+                "item_code_snapshot": "B0201001",
+                "item_name_snapshot": "근조기",
+                "line_no_snapshot": "2",
+                "quantity_snapshot": "3",
+                "unit_snapshot": "EA",
+              },
+            },
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "INSERT",
+              "values": {
+                "destination_company_id": "서울지점",
+                "issue_id": "null",
+                "receipt_id": "null",
+                "source_company_id": "부산지점",
+                "status": "PREPARING",
+                "transfer_id": "TR-1",
+                "transfer_type": "TRANSFER",
+              },
+            },
+            {
+              "identifier": "TI-1",
+              "table": "InvTransferItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "requested_qty": "2",
+                "transfer_id": "TR-1",
+                "transfer_item_id": "TI-1",
+              },
+            },
+            {
+              "identifier": "TI-2",
+              "table": "InvTransferItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "item_cd": "B0201001",
+                "requested_qty": "3",
+                "transfer_id": "TR-1",
+                "transfer_item_id": "TI-2",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.create",
+        },
+        {
+          "actor": "출발 지점 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/confirm",
+          "description": "출발 지점 주문의 상태가 바뀌고 출발사 근조기 재고가 예약된다. qty 는 그대로이고 reserved_qty 만 오른다.",
+          "name": "상품 준비",
+          "no": "2",
+          "note": "비탁송 2단계와 같은 조건을 쓴다. 수량 단위로 예약하는 것은 근조기ㆍ축기이고, 조사용품은 3단계 바코드 스캔에서 낱개마다 예약된다(inventory-transfer.service.ts:171).",
+          "operations": [
+            {
+              "identifier": "FO-D",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "CONFIRMED",
+              },
+            },
+            {
+              "identifier": "ST-2",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "reserved_qty": "3",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.confirm → InventoryTransferService.reserveQuantityItemsInTransaction",
+          "todo": "근조기 재고 행은 qty 가 0인 경우가 많아 예약이 통과하지 않는다(:931). 현재고를 qty 로 통일하면 해결된다.",
+        },
+        {
+          "actor": "출발 지점 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/item-verifications",
+          "description": "실을 조사용품 바코드를 스캔한다. 유닛이 RESERVED 로 바뀌고 이동 품목과 연결된다.",
+          "name": "상차 품목 확인",
+          "no": "3",
+          "operations": [
+            {
+              "identifier": "TU-1",
+              "table": "InvTransferItemUnits",
+              "type": "INSERT",
+              "values": {
+                "id": "TU-1",
+                "inventory_unit_id": "U-1",
+                "transfer_item_id": "TI-1",
+                "unloaded_at": "null",
+              },
+            },
+            {
+              "identifier": "TU-2",
+              "table": "InvTransferItemUnits",
+              "type": "INSERT",
+              "values": {
+                "id": "TU-2",
+                "inventory_unit_id": "U-2",
+                "transfer_item_id": "TI-1",
+                "unloaded_at": "null",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "status": "RESERVED",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "status": "RESERVED",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "reserved_qty": "2",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.verifyItems → InventoryTransferService.reserveBarcode",
+        },
+        {
+          "actor": "출발 지점 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/ship",
+          "description": "부산에서 재고가 나간다. 출고 전표를 남긴다. 다른 회사로 가는 것이므로 issue_type은 TRANSFER다.",
+          "name": "상차",
+          "no": "4",
+          "note": "CONSUME이 아니라 TRANSFER인 것이 중요하다. 사용수량은 CONSUME만 세므로, 회사 사이 이동이 사용량으로 잡히지 않는다. 부산의 근조기 잔여수량이 줄지 않는 이유가 이것이다.",
+          "operations": [
+            {
+              "identifier": "FO-D",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERING",
+              },
+            },
+            {
+              "identifier": "ISS-1",
+              "table": "InventoryIssues",
+              "type": "INSERT",
+              "values": {
+                "company_id": "부산지점",
+                "issue_id": "ISS-1",
+                "issue_type": "TRANSFER",
+                "issued_at": "2026-08-20 09:30",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "II-1",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "issue_id": "ISS-1",
+                "issue_item_id": "II-1",
+                "item_cd": "A0100010",
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "II-2",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "issue_id": "ISS-1",
+                "issue_item_id": "II-2",
+                "item_cd": "B0201001",
+                "qty": "3",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-1",
+                "status": "IN_TRANSIT",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-1",
+                "status": "IN_TRANSIT",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "3",
+                "reserved_qty": "0",
+              },
+            },
+            {
+              "identifier": "ST-2",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "7",
+                "reserved_qty": "0",
+              },
+            },
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "UPDATE",
+              "values": {
+                "issue_id": "ISS-1",
+                "status": "IN_TRANSIT",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.ship → InventoryTransferService.loadTransfer",
+        },
+        {
+          "actor": "도착 지점 담당자",
+          "api": "POST .../unload-barcodes  ·  PATCH .../complete",
+          "description": "서울로 재고가 들어온다. 입고 전표를 남기고 도착사 재고 수량이 늘어난다. 유닛은 서울의 재고가 된다.",
+          "name": "하차",
+          "no": "5",
+          "note": "상차가 출발사에 남기는 출고 전표에 대응하는 처리다. 스캔 세션을 거치지 않으므로 전표가 바로 COMPLETED 로 만들어진다. 조사용품 입고 품목은 바코드마다 한 행이고 근조기ㆍ축기는 수량 한 행이다.",
+          "operations": [
+            {
+              "identifier": "RCP-1",
+              "table": "InventoryReceipts",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "receipt_dt": "2026-08-20 14:05",
+                "receipt_id": "RCP-1",
+                "receipt_type": "TRANSFER",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "RI-1",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-1001",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "qty": "1",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-1",
+              },
+            },
+            {
+              "identifier": "RI-2",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-1002",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "qty": "1",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-2",
+              },
+            },
+            {
+              "identifier": "RI-3",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "null",
+                "inventory_type": "CONDOLENCE_FLAG",
+                "item_cd": "B0201001",
+                "qty": "3",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-3",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "company_id": "서울지점",
+                "status": "IN_STOCK",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "company_id": "서울지점",
+                "status": "IN_STOCK",
+              },
+            },
+            {
+              "identifier": "ST-3",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "ST-4",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "3",
+              },
+            },
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "UPDATE",
+              "values": {
+                "receipt_id": "RCP-1",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "TU-1",
+              "table": "InvTransferItemUnits",
+              "type": "UPDATE",
+              "values": {
+                "unloaded_at": "2026-08-20 14:05",
+              },
+            },
+            {
+              "identifier": "TU-2",
+              "table": "InvTransferItemUnits",
+              "type": "UPDATE",
+              "values": {
+                "unloaded_at": "2026-08-20 14:05",
+              },
+            },
+            {
+              "identifier": "FO-A",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "CONFIRMED",
+              },
+            },
+          ],
+          "service": "InventoryTransferService.scanUnloadBarcode → completeUnload",
+          "todo": "근조기ㆍ축기 사용수량 집계가 입고 전표 유형과 무관해서(ceremonial-flag-inventory.service.ts:103) 이 TRANSFER 입고 전표까지 반납으로 차감한다. 서울의 근조기 사용수량이 3 줄어 실제보다 적게 나온다.",
+        },
+        {
+          "actor": "도착 지점 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/ship",
+          "derived": [
+            [
+              "서울 근조기 현재고(qty)",
+              "3 → 0",
+            ],
+            [
+              "서울 근조기 기준수량",
+              "10",
+            ],
+            [
+              "서울 근조기 사용수량",
+              "0 → 3",
+            ],
+          ],
+          "description": "서울에서 장례식장으로 나간다. 여기서부터는 비탁송의 4단계와 완전히 같다.",
+          "name": "배송",
+          "no": "6",
+          "note": "도착 지점이 다른 지점과 같은 상태를 거친다. 받으면 입고, 내보내면 출고다. 이번 CONSUME 전표가 서울의 근조기 사용수량 3을 만든다.",
+          "operations": [
+            {
+              "identifier": "FO-A",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERING",
+              },
+            },
+            {
+              "identifier": "ISS-2",
+              "table": "InventoryIssues",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "issue_id": "ISS-2",
+                "issue_type": "CONSUME",
+                "issued_at": "2026-08-20 15:40",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "II-3",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "issue_id": "ISS-2",
+                "issue_item_id": "II-3",
+                "item_cd": "A0100010",
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "II-4",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "issue_id": "ISS-2",
+                "issue_item_id": "II-4",
+                "item_cd": "B0201001",
+                "qty": "3",
+              },
+            },
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-2",
+                "status": "CONSUMED",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "UPDATE",
+              "values": {
+                "last_issue_id": "ISS-2",
+                "status": "CONSUMED",
+              },
+            },
+            {
+              "identifier": "ST-3",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "0",
+              },
+            },
+            {
+              "identifier": "ST-4",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "0",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.ship",
+          "todo": "Task 9. 비탁송 4단계와 같다. 지금은 출고 전표를 만들지 않는다.",
+        },
+        {
+          "actor": "도착 지점 담당자",
+          "api": "POST /v1/fsms/partners/flower/orders/:id/deliver",
+          "description": "두 주문이 함께 완료된다. 재고 차감은 6단계에서 끝났다.",
+          "name": "배송 완료",
+          "no": "7",
+          "operations": [
+            {
+              "identifier": "FO-A",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERED",
+              },
+            },
+            {
+              "identifier": "FO-D",
+              "table": "FevFlowerOrders",
+              "type": "UPDATE",
+              "values": {
+                "order_status": "DELIVERED",
+              },
+            },
+          ],
+          "service": "FlowerOrdersService.deliver",
+        },
+      ],
+    },
+    {
+      "base": [
+        [
+          "InventoryStocks",
+          "ST-1",
+          {
+            "base_qty": "null",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "qty": "0",
+            "reserved_qty": "0",
+            "stock_id": "ST-1",
+          },
+        ],
+      ],
+      "description": "물류센터에서 지점으로 조사용품이 온다. 물류센터가 넘기는 것은 어디서 어디로 어떤 품목을 몇 개 보내는지까지다. 바코드는 넘어오지 않고 지점이 받아서 찍을 때 처음 등록된다.",
+      "name": "물류센터 입고",
+      "scenario": [
+        {
+          "text": "입고 내용",
+          "type": "heading",
+        },
+        {
+          "lines": [
+            "물류센터에서 서울지점으로 조사용품이 온다. 발송 전표번호는 WH-12345다.",
+            "물류센터를 Company 1행으로 등록한다. 입고 목록의 출고 창고 열이 이동 출발사의 회사명을 그대로 읽으므로, 창고와 지점이 한 열에 섞여 나오는 화면이 그대로 성립한다.",
+            "재고 쪽에 추가되는 것은 InvTransfers.erp_doc_no 컬럼 하나다. 같은 발송을 두 번 받아도 이 컬럼으로 걸러진다.",
+          ],
+          "type": "text",
+        },
+        {
+          "columns": [
+            "",
+            "지금",
+            "이 탭이 그리는 모습",
+          ],
+          "rows": [
+            [
+              "물류센터 발송 시",
+              "우리 DB에 아무 행도 생기지 않는다",
+              "이동 1행, 품목 1행이 생긴다",
+            ],
+            [
+              "지점이 미리 아는 것",
+              "없다. 물건이 와야 안다",
+              "들어올 품목과 수량. 바코드는 모른다",
+            ],
+            [
+              "스캔 판정",
+              "예정이 없어 전부 예정 밖으로 나온다",
+              "예정 수량과 대조해 초과를 가른다",
+            ],
+            [
+              "입고 전표 유형",
+              "EXTERNAL",
+              "TRANSFER",
+            ],
+            [
+              "유닛이 생기는 시점",
+              {
+                "colSpan": 2,
+                "content": "같다. 지점이 찍고 입고를 완료할 때",
+              },
+            ],
+            [
+              "화면",
+              {
+                "colSpan": 2,
+                "content": "같다. 입고 스캔 세션 하나를 쓴다",
+              },
+            ],
+          ],
+          "title": "지금 동작과의 차이",
+          "type": "table",
+        },
+        {
+          "columns": [
+            "품목코드",
+            "품목명",
+            "재고유형",
+            "단위",
+            "발송 수량",
+            "바코드",
+          ],
+          "rows": [
+            [
+              "A0100010",
+              "[조사용품] 현진시닝(300인분)",
+              "FUNERAL_SUPPLIES",
+              "BOX",
+              "2",
+              "발송 시점에는 없다",
+            ],
+          ],
+          "type": "table",
+        },
+      ],
+      "steps": [
+        {
+          "actor": "배치 또는 물류센터 호출",
+          "api": "정해지지 않음",
+          "description": "물류센터가 보낸 발송 내역으로 이동 행을 만든다. 물류센터가 이미 실어 보냈으므로 status 를 PREPARING 이 아니라 IN_TRANSIT 으로 바로 만든다.",
+          "name": "발송 내역 적재",
+          "no": "1",
+          "note": "바코드가 넘어오지 않으므로 유닛도 이동 품목과 유닛을 잇는 연결 행도 만들지 않는다. 이동과 품목 두 행이 전부다. 탁송은 상차 스캔이 있어 이 자리에서 유닛과 연결이 생기고, 물류센터 발송은 그 단계가 없다.",
+          "operations": [
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "INSERT",
+              "values": {
+                "destination_company_id": "서울지점",
+                "erp_doc_no": "WH-12345",
+                "issue_id": "null",
+                "receipt_id": "null",
+                "source_company_id": "물류센터",
+                "status": "IN_TRANSIT",
+                "transfer_id": "TR-1",
+                "transfer_type": "TRANSFER",
+              },
+            },
+            {
+              "identifier": "TI-1",
+              "table": "InvTransferItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "requested_qty": "2",
+                "transfer_id": "TR-1",
+                "transfer_item_id": "TI-1",
+              },
+            },
+          ],
+          "service": "발송 내역 적재",
+          "todo": "적재 경로가 정해지지 않았다. 물류센터가 우리 테이블에 넣을지 우리가 API를 열지가 미정이다. 지금은 이 단계가 없어 물류센터 발송 시 우리 DB에 아무 행도 생기지 않는다.",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "GET /v1/fsms/inventory/inbound-transfers",
+          "description": "입고 목록에 들어올 품목과 수량이 보인다. 재고 테이블은 바뀌지 않는다. 조회만 한다.",
+          "name": "지점이 예정 확인",
+          "no": "2",
+          "note": "예정 수량은 지금 코드로 그대로 나온다. loadBaselineTransfers 가 도착사 기준 IN_TRANSIT 이동을 찾기 때문이다(inventory-scan.service.ts:93).",
+          "operations": [],
+          "service": "InventoryScanService.inboundTransfers",
+          "todo": "입고완료 수량이 늘 0으로 나온다. 상차 바코드와 입고 바코드의 교집합으로 세는데(:1015) 물류센터 발송에는 상차 바코드가 없다. 같은 품목이 여러 창고에서 오면 찍은 바코드를 어느 발송 건에 귀속할지도 정해지지 않았다.",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/scan-sessions  ·  POST .../:id/scan",
+          "description": "입고 세션을 열고 받은 물건의 바코드를 찍는다. 바코드가 여기서 처음 등장한다. 스캔 1건이 이벤트 행으로 쌓이고 재고 테이블은 아직 바뀌지 않는다.",
+          "name": "입고 스캔",
+          "no": "3",
+          "note": "화환 탁송 하차(scanUnloadBarcode)가 아니라 입고 스캔 세션을 탄다. loadBaselineTransfers 가 플라워 주문이 붙지 않은 이동만 찾으므로 물류센터 이동이 여기에 걸린다. 같은 판정을 부작용 없이 미리 보는 GET .../lookup 이 따로 있고, 그쪽은 행을 만들지 않는다.",
+          "operations": [
+            {
+              "identifier": "RCP-1",
+              "table": "InventoryReceipts",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "receipt_dt": "2026-08-21 10:20",
+                "receipt_id": "RCP-1",
+                "receipt_type": "TRANSFER",
+                "status": "IN_PROGRESS",
+              },
+            },
+            {
+              "identifier": "SS-1",
+              "table": "InventoryScanSessions",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "receipt_id": "RCP-1",
+                "scan_session_id": "SS-1",
+                "session_type": "RECEIVING",
+                "status": "IN_PROGRESS",
+              },
+            },
+            {
+              "identifier": "EV-1",
+              "table": "InventoryScanEvents",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2001",
+                "item_cd": "A0100010",
+                "result_code": "NORMAL",
+                "scan_event_id": "EV-1",
+                "scan_session_id": "SS-1",
+                "voided": "false",
+              },
+            },
+            {
+              "identifier": "EV-2",
+              "table": "InventoryScanEvents",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2002",
+                "item_cd": "A0100010",
+                "result_code": "NORMAL",
+                "scan_event_id": "EV-2",
+                "scan_session_id": "SS-1",
+                "voided": "false",
+              },
+            },
+          ],
+          "service": "InventoryScanService.start → scan",
+          "todo": "전표 유형만 다르다. 1단계 이동이 없으면 이 전표가 TRANSFER 가 아니라 EXTERNAL 로 만들어진다. 지금이 그 상태다.",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/scan-sessions/:id/complete",
+          "description": "찍은 바코드가 유닛으로 등록되어 서울지점 재고가 되고 입고 품목과 재고 수량이 채워진다. 이동도 함께 수령 처리된다.",
+          "name": "입고 완료",
+          "no": "4",
+          "note": "유닛은 이 시점에 새로 만들어진다. 입고 품목 행은 바코드마다 한 줄씩 qty 1 로 쌓인다. 이 흐름의 바코드는 여기서 처음이자 마지막으로 등록되므로 넘겨받을 유닛이 없다.",
+          "operations": [
+            {
+              "identifier": "U-1",
+              "table": "InventoryUnits",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2001",
+                "company_id": "서울지점",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "last_issue_id": "null",
+                "status": "IN_STOCK",
+                "unit_id": "U-1",
+              },
+            },
+            {
+              "identifier": "U-2",
+              "table": "InventoryUnits",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2002",
+                "company_id": "서울지점",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "last_issue_id": "null",
+                "status": "IN_STOCK",
+                "unit_id": "U-2",
+              },
+            },
+            {
+              "identifier": "RI-1",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2001",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "qty": "1",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-1",
+              },
+            },
+            {
+              "identifier": "RI-2",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-2002",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "item_cd": "A0100010",
+                "qty": "1",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-2",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "RCP-1",
+              "table": "InventoryReceipts",
+              "type": "UPDATE",
+              "values": {
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "SS-1",
+              "table": "InventoryScanSessions",
+              "type": "UPDATE",
+              "values": {
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "TR-1",
+              "table": "InvTransfers",
+              "type": "UPDATE",
+              "values": {
+                "receipt_id": "RCP-1",
+                "status": "COMPLETED",
+              },
+            },
+          ],
+          "service": "InventoryScanService.complete",
+        },
+      ],
+    },
+    {
+      "base": [
+        [
+          "InventoryStocks",
+          "ST-1",
+          {
+            "base_qty": "null",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "qty": "3",
+            "reserved_qty": "0",
+            "stock_id": "ST-1",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-1",
+          {
+            "barcode": "BC-3001",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-1",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-2",
+          {
+            "barcode": "BC-3002",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-2",
+          },
+        ],
+        [
+          "InventoryUnits",
+          "U-3",
+          {
+            "barcode": "BC-3003",
+            "company_id": "서울지점",
+            "inventory_type": "FUNERAL_SUPPLIES",
+            "item_cd": "A0100010",
+            "last_issue_id": "null",
+            "status": "IN_STOCK",
+            "unit_id": "U-3",
+          },
+        ],
+      ],
+      "description": "장부 수량과 실제 물건이 맞는지 대조한다. 입고와 같은 QR 스캔 화면을 쓰고 session_type 만 AUDIT 으로 다르다.",
+      "name": "재고 실사 (조사용품)",
+      "scenario": [
+        {
+          "text": "실사 내용",
+          "type": "heading",
+        },
+        {
+          "lines": [
+            "서울지점이 조사용품 재고를 실사한다.",
+            "장부에는 3개로 되어 있는데 실제로는 2개만 있는 상황이다. 실사가 그 차이를 드러낸다.",
+            "이 화면은 조사용품 전용이다. start 가 FUNERAL_SUPPLIES 만 허용한다. 근조기ㆍ축기는 이 세션을 쓰지 않고 6번 탭의 수동 실사를 쓴다.",
+          ],
+          "type": "text",
+        },
+        {
+          "columns": [
+            "품목코드",
+            "품목명",
+            "장부 수량",
+            "실제 수량",
+            "바코드",
+          ],
+          "rows": [
+            [
+              "A0100010",
+              "[조사용품] 현진시닝(300인분)",
+              "3",
+              "2",
+              "BC-3001, BC-3002 (BC-3003 은 없음)",
+            ],
+          ],
+          "type": "table",
+        },
+      ],
+      "steps": [
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/scan-sessions",
+          "description": "실사 1건과 품목 행이 생긴다. 이 시점의 재고 수량이 book_qty 로 복사된다.",
+          "name": "실사 세션 시작",
+          "no": "1",
+          "note": "입고 세션과 같은 API 를 쓰고 sessionType 만 다르다. 입고는 InventoryReceipts 를 만들고 세션의 receipt_id 에 연결하는데, 실사는 InventoryAudits 를 만들고 audit_id 에 연결한다. 세션 테이블은 하나다.",
+          "operations": [
+            {
+              "identifier": "AUD-1",
+              "table": "InventoryAudits",
+              "type": "INSERT",
+              "values": {
+                "audit_dt": "2026-08-20 14:00",
+                "company_id": "서울지점",
+                "inventory_audit_id": "AUD-1",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "status": "IN_PROGRESS",
+              },
+            },
+            {
+              "identifier": "AI-1",
+              "table": "InventoryAuditItems",
+              "type": "INSERT",
+              "values": {
+                "actual_qty": "null",
+                "book_qty": "3",
+                "diff_qty": "null",
+                "inventory_audit_id": "AUD-1",
+                "inventory_audit_item_id": "AI-1",
+                "item_cd": "A0100010",
+              },
+            },
+            {
+              "identifier": "SS-1",
+              "table": "InventoryScanSessions",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "inventory_type": "FUNERAL_SUPPLIES",
+                "receipt_id": "null",
+                "scan_session_id": "SS-1",
+                "session_type": "AUDIT",
+                "status": "IN_PROGRESS",
+              },
+            },
+          ],
+          "service": "InventoryScanService.start (sessionType=AUDIT)",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/scan-sessions/:id/scan",
+          "description": "창고에 실제로 있는 물건의 바코드를 찍는다. 여기서는 BC-3001 과 BC-3002 만 찍힌다. BC-3003 은 물건이 없어 못 찍는다.",
+          "name": "바코드 스캔",
+          "no": "2",
+          "note": "스캔 1건이 이벤트 행으로 쌓인다. 실사 품목의 actual_qty 는 아직 비어 있고 완료 시점에 이벤트를 집계해 채운다.",
+          "operations": [
+            {
+              "identifier": "EV-1",
+              "table": "InventoryScanEvents",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-3001",
+                "item_cd": "A0100010",
+                "result_code": "NORMAL",
+                "scan_event_id": "EV-1",
+                "scan_session_id": "SS-1",
+                "voided": "false",
+              },
+            },
+            {
+              "identifier": "EV-2",
+              "table": "InventoryScanEvents",
+              "type": "INSERT",
+              "values": {
+                "barcode": "BC-3002",
+                "item_cd": "A0100010",
+                "result_code": "NORMAL",
+                "scan_event_id": "EV-2",
+                "scan_session_id": "SS-1",
+                "voided": "false",
+              },
+            },
+          ],
+          "service": "InventoryScanService.scan",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/scan-sessions/:id/complete",
+          "description": "찍힌 수를 실제 수량으로 기록하고 차이를 남긴다. 조사용품은 재고 수량을 실사 수량으로 덮어쓴다.",
+          "name": "실사 완료",
+          "no": "3",
+          "note": "조사용품만 파괴적 덮어쓰기다(qty = actual_qty). 없어진 BC-3003 의 유닛 행은 지우지 않는다. 수량만 2로 맞춘다. 반대로 장부에 없던 바코드를 찍으면 유닛 행을 새로 만든다.",
+          "operations": [
+            {
+              "identifier": "AI-1",
+              "table": "InventoryAuditItems",
+              "type": "UPDATE",
+              "values": {
+                "actual_qty": "2",
+                "diff_qty": "-1",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "2",
+              },
+            },
+            {
+              "identifier": "AUD-1",
+              "table": "InventoryAudits",
+              "type": "UPDATE",
+              "values": {
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "SS-1",
+              "table": "InventoryScanSessions",
+              "type": "UPDATE",
+              "values": {
+                "status": "COMPLETED",
+              },
+            },
+          ],
+          "service": "InventoryScanService.complete (AUDIT 분기)",
+        },
+      ],
+    },
+    {
+      "base": [
+        [
+          "InventoryStocks",
+          "ST-1",
+          {
+            "base_qty": "null",
+            "company_id": "서울지점",
+            "inventory_type": "CONDOLENCE_FLAG",
+            "item_cd": "B0201001",
+            "qty": "10",
+            "reserved_qty": "0",
+            "stock_id": "ST-1",
+          },
+        ],
+      ],
+      "description": "근조기와 축기는 바코드도 유닛 행도 없다. 그 점만 조사용품과 다르고, 현재고를 읽는 자리는 같다. 두 유형 모두 InventoryStocks.qty 가 현재고이고 qty - reserved_qty 가 가용재고다.",
+      "name": "근조기ㆍ축기 (수량 재고)",
+      "scenario": [
+        {
+          "text": "계산식",
+          "type": "heading",
+        },
+        {
+          "lines": [
+            "현재고 = InventoryStocks.qty. 조사용품과 같은 컬럼을 같은 뜻으로 읽는다",
+            "가용재고 = qty - reserved_qty. 이것도 같다",
+            "기준수량 = base_qty. 이 품목을 몇 개 갖고 있어야 하는지를 정한 목표치다. 현재고 계산에 들어가지 않는다",
+            "사용수량 = 확정 출고 합 - 확정 반납입고 합. 얼마나 나갔는지를 보여주는 기록값이고 현재고를 만들지 않는다",
+            "재고편차 = 실사수량 - 실사 시작 시점의 현재고. 실사 품목 행에 저장된다",
+          ],
+          "type": "text",
+        },
+        {
+          "columns": [
+            "",
+            "조사용품",
+            "근조기ㆍ축기",
+          ],
+          "rows": [
+            [
+              "현재고",
+              {
+                "colSpan": 2,
+                "content": "같다. InventoryStocks.qty",
+              },
+            ],
+            [
+              "가용재고",
+              {
+                "colSpan": 2,
+                "content": "같다. qty - reserved_qty",
+              },
+            ],
+            [
+              "바코드 낱개 추적",
+              "한다. InventoryUnits 1행",
+              "하지 않는다. 유닛 행 없음",
+            ],
+            [
+              "입고",
+              "QR 스캔 세션",
+              "반납 입고 팝업에 수량 직접 입력",
+            ],
+            [
+              "실사",
+              "QR 스캔으로 수량 집계",
+              "수동 실사에 수량 직접 입력",
+            ],
+            [
+              "기준 대비",
+              "min_qty(안전 재고)와 비교",
+              "base_qty(기준수량)와 비교",
+            ],
+          ],
+          "title": "조사용품과의 차이",
+          "type": "table",
+        },
+        {
+          "text": "이 흐름의 숫자",
+          "type": "heading",
+        },
+        {
+          "columns": [
+            "단계",
+            "qty (현재고)",
+            "기준",
+            "사용",
+            "실사",
+            "편차",
+          ],
+          "rows": [
+            [
+              "1. 기준수량 설정",
+              "10",
+              "10",
+              "0",
+              "-",
+              "-",
+            ],
+            [
+              "2. 출고 7",
+              "3",
+              "10",
+              "7",
+              "-",
+              "-",
+            ],
+            [
+              "3. 반납 입고 2",
+              "5",
+              "10",
+              "5",
+              "-",
+              "-",
+            ],
+            [
+              "5. 실사 완료",
+              "3",
+              "10",
+              "5",
+              "3",
+              "-2",
+            ],
+          ],
+          "type": "table",
+        },
+      ],
+      "steps": [
+        {
+          "actor": "본사 관리자",
+          "api": "PATCH /v1/fsms/inventory/ceremonial-flags/stocks/:id",
+          "derived": [
+            [
+              "현재고(qty)",
+              "10",
+            ],
+            [
+              "기준수량",
+              "비어 있음 → 10",
+            ],
+            [
+              "사용수량",
+              "0",
+            ],
+          ],
+          "description": "이 지점이 이 품목을 몇 개 갖고 있어야 하는지를 정한다. 컬럼을 바꾸고 변경 이력을 함께 남긴다. 현재고(qty)는 건드리지 않는다.",
+          "name": "기준수량 설정",
+          "no": "1",
+          "note": "본사 관리자만 할 수 있다. 이력에 이전 값과 새 값과 사유가 남는다. 기준수량은 목표치이므로 현재고와 다를 수 있고, 그 차이가 채워야 할 양이다.",
+          "operations": [
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "base_qty": "10",
+              },
+            },
+            {
+              "identifier": "BH-1",
+              "table": "InventoryBaseQtyHistory",
+              "type": "INSERT",
+              "values": {
+                "base_qty_history_id": "BH-1",
+                "inventory_stock_id": "ST-1",
+                "item_cd": "B0201001",
+                "new_qty": "10",
+                "old_qty": "null",
+                "reason": "지점 표준 배치량 반영",
+              },
+            },
+          ],
+          "service": "CeremonialFlagInventoryService.updateBaseQty",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "행사 진행에 따라",
+          "derived": [
+            [
+              "현재고(qty)",
+              "10 → 3",
+            ],
+            [
+              "기준수량",
+              "10",
+            ],
+            [
+              "사용수량",
+              "0 → 7",
+            ],
+          ],
+          "description": "근조기 7개가 나간다. 현재고가 7 줄고, 나간 사실이 출고 전표로 남는다. 외부로 나가는 것이므로 issue_type 은 CONSUME 이다.",
+          "name": "출고 7",
+          "no": "2",
+          "note": "회사 사이 이동(TRANSFER)은 사용수량에 세지 않는다. 다른 지점으로 보낸 것은 회사 밖으로 나간 것이 아니기 때문이다. 수량 차감은 이동이든 소모든 똑같이 일어난다.",
+          "operations": [
+            {
+              "identifier": "ISS-1",
+              "table": "InventoryIssues",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "issue_id": "ISS-1",
+                "issue_type": "CONSUME",
+                "issued_at": "2026-08-20 09:10",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "II-1",
+              "table": "InventoryIssueItems",
+              "type": "INSERT",
+              "values": {
+                "inventory_type": "CONDOLENCE_FLAG",
+                "issue_id": "ISS-1",
+                "issue_item_id": "II-1",
+                "item_cd": "B0201001",
+                "qty": "7",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "3",
+              },
+            },
+          ],
+          "service": "출고 경로",
+          "todo": "Task 9. CONSUME 전표를 만드는 경로가 없다. 출고 전표를 만드는 자리는 상차 하나뿐이고 그것은 TRANSFER 다(inventory-transfer.service.ts:509). 사용수량을 세는 원천은 InventoryIssues 로 이미 옮겼다(ceremonial-flag-inventory.service.ts:94).",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/ceremonial-flags/receipts",
+          "derived": [
+            [
+              "현재고(qty)",
+              "3 → 5",
+            ],
+            [
+              "기준수량",
+              "10",
+            ],
+            [
+              "사용수량",
+              "7 → 5",
+            ],
+          ],
+          "description": "나갔던 근조기 2개가 돌아온다. QR 없이 수량을 직접 입력한다. 완료 상태의 입고 전표가 바로 만들어지고 현재고가 2 는다.",
+          "name": "반납 입고 2",
+          "no": "3",
+          "note": "반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다. 사용수량이 7에서 5로 줄고 현재고가 3에서 5로 는다.",
+          "operations": [
+            {
+              "identifier": "RCP-1",
+              "table": "InventoryReceipts",
+              "type": "INSERT",
+              "values": {
+                "company_id": "서울지점",
+                "receipt_dt": "2026-08-20 13:00",
+                "receipt_id": "RCP-1",
+                "receipt_type": "RETURN",
+                "status": "COMPLETED",
+              },
+            },
+            {
+              "identifier": "RI-1",
+              "table": "InventoryReceiptItems",
+              "type": "INSERT",
+              "values": {
+                "barcode": "null",
+                "inventory_type": "CONDOLENCE_FLAG",
+                "item_cd": "B0201001",
+                "qty": "2",
+                "receipt_id": "RCP-1",
+                "receipt_item_id": "RI-1",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "5",
+              },
+            },
+          ],
+          "service": "CeremonialFlagInventoryService.createReturnReceipt",
+          "todo": "지금은 입고 전표만 만들고 InventoryStocks.qty 를 건드리지 않는다. 현재고를 qty 하나로 읽으려면 이 자리에 수량 증가가 붙어야 한다.",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "POST /v1/fsms/inventory/audits",
+          "derived": [
+            [
+              "현재고(qty)",
+              "5",
+            ],
+            [
+              "기준수량",
+              "10",
+            ],
+            [
+              "사용수량",
+              "5",
+            ],
+            [
+              "실사 품목의 book_qty",
+              "5",
+            ],
+          ],
+          "description": "실사 1건과 품목 행이 생긴다. 이 시점의 현재고가 장부 수량으로 복사된다. QR 스캔 세션을 쓰지 않는다.",
+          "name": "실사 시작",
+          "no": "4",
+          "note": "장부 수량(book_qty)에 InventoryStocks.qty 가 복사된다. 조사용품 실사와 같은 코드이고 같은 컬럼을 읽는다.",
+          "operations": [
+            {
+              "identifier": "AUD-1",
+              "table": "InventoryAudits",
+              "type": "INSERT",
+              "values": {
+                "audit_dt": "2026-08-20 15:00",
+                "company_id": "서울지점",
+                "inventory_audit_id": "AUD-1",
+                "inventory_type": "CONDOLENCE_FLAG",
+                "status": "IN_PROGRESS",
+              },
+            },
+            {
+              "identifier": "AI-1",
+              "table": "InventoryAuditItems",
+              "type": "INSERT",
+              "values": {
+                "actual_qty": "null",
+                "book_qty": "5",
+                "diff_qty": "null",
+                "inventory_audit_id": "AUD-1",
+                "inventory_audit_item_id": "AI-1",
+                "item_cd": "B0201001",
+              },
+            },
+          ],
+          "service": "InventoryAuditService.create",
+        },
+        {
+          "actor": "지점 담당자",
+          "api": "PATCH /v1/fsms/inventory/audits/:id/items  ·  PATCH .../complete",
+          "derived": [
+            [
+              "현재고(qty)",
+              "5 → 3",
+            ],
+            [
+              "기준수량",
+              "10",
+            ],
+            [
+              "사용수량",
+              "5",
+            ],
+            [
+              "실사수량",
+              "3",
+            ],
+            [
+              "재고편차",
+              "-2",
+            ],
+            [
+              "재고상태",
+              "누락(SHORT)",
+            ],
+          ],
+          "description": "실제로 세어 3개를 입력한다. 편차는 실사수량에서 장부 수량을 뺀 -2 이고, 현재고가 실사값 3으로 맞춰진다.",
+          "name": "실사 수량 입력과 완료",
+          "no": "5",
+          "note": "조사용품 실사와 같은 처리다. 없어진 2개가 편차로 드러나고 현재고가 실물에 맞춰진다. 기준수량 10과 현재고 3의 차이 7은 채워야 할 양이다.",
+          "operations": [
+            {
+              "identifier": "AI-1",
+              "table": "InventoryAuditItems",
+              "type": "UPDATE",
+              "values": {
+                "actual_qty": "3",
+                "diff_qty": "-2",
+              },
+            },
+            {
+              "identifier": "ST-1",
+              "table": "InventoryStocks",
+              "type": "UPDATE",
+              "values": {
+                "qty": "3",
+              },
+            },
+            {
+              "identifier": "AUD-1",
+              "table": "InventoryAudits",
+              "type": "UPDATE",
+              "values": {
+                "status": "COMPLETED",
+              },
+            },
+          ],
+          "service": "InventoryAuditService.saveItems → complete",
+          "todo": "지금은 근조기ㆍ축기에서 qty 를 덮지 않는다(inventory-audit.service.ts:145). 조사용품만 덮도록 유형 분기가 걸려 있어 그 분기를 지워야 한다.",
+        },
+      ],
+    },
+  ],
+  "itemNames": {
+    "A0100010": "[조사용품] 현진시닝(300인분)",
+    "B0201001": "근조기",
+    "C0310220": "[근조기]LG전자",
+  },
+  "schemas": {
+    "FevFlowerOrderItems": {
+      "columns": [
+        "flower_order_item_id",
+        "flower_order_id",
+        "line_no_snapshot",
+        "item_code_snapshot",
+        "item_name_snapshot",
+        "unit_snapshot",
+        "quantity_snapshot",
+        "inventory_stock_id",
+      ],
+      "group": "플라워",
+      "role": "주문 품목. 발주 라인을 스냅샷으로 복사하고 어느 재고 행에서 나갈지 가리킨다 (재고 무관 컬럼 15개는 생략)",
+    },
+    "FevFlowerOrders": {
+      "columns": [
+        "order_id",
+        "order_no",
+        "company_id",
+        "consignment_type",
+        "order_status",
+        "inventory_transfer_id",
+      ],
+      "group": "플라워",
+      "role": "플라워 지점의 주문 1건. 화환도 여기 담기지만 모든 주문이 화환은 아니다. 탁송이면 출발 지점 주문과 도착 지점 주문 두 건이 생긴다",
+    },
+    "InvTransferItemUnits": {
+      "columns": [
+        "id",
+        "transfer_item_id",
+        "inventory_unit_id",
+        "unloaded_at",
+      ],
+      "group": "재고 이관",
+      "role": "이동 품목과 실물 바코드를 연결한다. 조사용품만 해당한다",
+    },
+    "InvTransferItems": {
+      "columns": [
+        "transfer_item_id",
+        "transfer_id",
+        "item_cd",
+        "inventory_type",
+        "requested_qty",
+      ],
+      "group": "재고 이관",
+      "includeItemName": true,
+      "role": "이동 품목. 재고유형이 품목마다 붙어 한 이동에 유형이 섞일 수 있다",
+    },
+    "InvTransfers": {
+      "columns": [
+        "transfer_id",
+        "transfer_type",
+        "source_company_id",
+        "destination_company_id",
+        "status",
+        "issue_id",
+        "receipt_id",
+        "erp_doc_no",
+      ],
+      "group": "재고 이관",
+      "role": "재고이동 지시서. 탁송과 자사 배송을 한 자료구조로 담는다. erp_doc_no 는 ERP 연동 안에서만 쓰는 컬럼이다",
+    },
+    "InventoryAuditItems": {
+      "columns": [
+        "inventory_audit_item_id",
+        "inventory_audit_id",
+        "item_cd",
+        "book_qty",
+        "actual_qty",
+        "diff_qty",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "실사 품목. book_qty 는 시작 시점의 InventoryStocks.qty 복사본이고, actual_qty 는 찍거나 입력한 수, diff_qty 는 그 차이다",
+      "section": "실사",
+    },
+    "InventoryAudits": {
+      "columns": [
+        "inventory_audit_id",
+        "company_id",
+        "inventory_type",
+        "status",
+        "audit_dt",
+      ],
+      "group": "재고",
+      "role": "재고 실사 1건. 시작 시점의 재고 수량을 장부 수량으로 복사한다",
+      "section": "실사",
+    },
+    "InventoryBaseQtyHistory": {
+      "columns": [
+        "base_qty_history_id",
+        "inventory_stock_id",
+        "item_cd",
+        "old_qty",
+        "new_qty",
+        "reason",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "근조기·축기 기준수량(base_qty) 변경 이력. 목표치를 누가 언제 얼마로 바꿨는지 남긴다. 본사 관리자가 편집할 때만 쌓인다",
+      "section": "기준수량",
+    },
+    "InventoryIssueItems": {
+      "columns": [
+        "issue_item_id",
+        "issue_id",
+        "item_cd",
+        "inventory_type",
+        "qty",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "출고 품목. 사용수량은 CONSUME 전표의 이 행을 합산한다",
+      "section": "출고 전표",
+    },
+    "InventoryIssues": {
+      "columns": [
+        "issue_id",
+        "company_id",
+        "issue_type",
+        "status",
+        "issued_at",
+      ],
+      "group": "재고",
+      "role": "출고 전표. 회사에서 재고가 나간 사실을 기록한다",
+      "section": "출고 전표",
+    },
+    "InventoryReceiptItems": {
+      "columns": [
+        "receipt_item_id",
+        "receipt_id",
+        "item_cd",
+        "inventory_type",
+        "qty",
+        "barcode",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "입고 품목. 근조기·축기 반납 합산은 완료된 입고 전표를 유형과 무관하게 전부 차감한다",
+      "section": "입고 전표",
+    },
+    "InventoryReceipts": {
+      "columns": [
+        "receipt_id",
+        "company_id",
+        "receipt_type",
+        "status",
+        "receipt_dt",
+      ],
+      "group": "재고",
+      "role": "입고 전표. 회사로 재고가 들어온 사실을 기록한다",
+      "section": "입고 전표",
+    },
+    "InventoryScanEvents": {
+      "columns": [
+        "scan_event_id",
+        "scan_session_id",
+        "barcode",
+        "item_cd",
+        "result_code",
+        "voided",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "스캔 1건. 완료 전까지 여기에만 쌓이고 재고에는 반영되지 않는다. result_code 는 NORMAL·EXCESS·UNPLANNED·UNKNOWN_ITEM·DUPLICATE 다",
+      "section": "입고 스캔",
+    },
+    "InventoryScanSessions": {
+      "columns": [
+        "scan_session_id",
+        "session_type",
+        "company_id",
+        "inventory_type",
+        "status",
+        "receipt_id",
+      ],
+      "group": "재고",
+      "role": "QR 스캔 화면의 세션. session_type 이 RECEIVING(입고)과 AUDIT(실사) 두 가지다. 조사용품 전용이며, 입고 완료 시 스캔한 품목이 걸린 운송중 재고이동도 함께 수령 처리한다",
+      "section": "입고 스캔",
+    },
+    "InventoryStocks": {
+      "columns": [
+        "stock_id",
+        "company_id",
+        "item_cd",
+        "inventory_type",
+        "qty",
+        "reserved_qty",
+        "base_qty",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "회사·품목별 재고 1행. 현재고는 재고유형과 무관하게 qty 이고 가용재고는 qty - reserved_qty 다. base_qty 는 근조기·축기가 몇 개 있어야 하는지를 정한 목표치이고 현재고 계산에 들어가지 않는다",
+      "section": "실물 재고 (수량과 낱개)",
+    },
+    "InventoryUnits": {
+      "columns": [
+        "unit_id",
+        "barcode",
+        "company_id",
+        "item_cd",
+        "inventory_type",
+        "status",
+        "last_issue_id",
+      ],
+      "group": "재고",
+      "includeItemName": true,
+      "role": "조사용품 실물 한 개. 바코드로 어느 낱개가 어디 있는지를 추적한다. 수량 자체는 InventoryStocks.qty 가 갖고 이 행은 그 안의 개별 실물을 가리킨다. 근조기·축기는 이 행이 없다",
+      "section": "실물 재고 (수량과 낱개)",
+    },
+  },
+}
+`;
