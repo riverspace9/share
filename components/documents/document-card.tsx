@@ -1,4 +1,5 @@
 import * as React from 'react'
+import Link from 'next/link'
 
 import {
   Card,
@@ -29,9 +30,9 @@ export function DocumentCard({
     <Card>
       <CardHeader>
         <CardTitle>
-          <a className="hover:text-primary" href={href}>
+          <Link className="hover:text-primary" href={href}>
             {title}
-          </a>
+          </Link>
         </CardTitle>
         <CardDescription>{summary}</CardDescription>
       </CardHeader>

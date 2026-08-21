@@ -1,11 +1,20 @@
 import * as React from 'react'
 import { render, screen } from '@testing-library/react'
+import { vi } from 'vitest'
+
+vi.mock('next/link', () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a data-next-link="true" href={`/share${href}`}>
+      {children}
+    </a>
+  ),
+}))
 
 import { DocumentCard } from '@/components/documents/document-card'
 import { DocumentLayout } from '@/components/documents/document-layout'
 
 describe('DocumentCard', () => {
-  it('제목 링크로 문서를 연다', () => {
+  it('제목 링크에 Next basePath를 적용한다', () => {
     render(
       <DocumentCard
         title="본부 탁송 비용 계산"
@@ -16,9 +25,14 @@ describe('DocumentCard', () => {
       />
     )
 
-    expect(
-      screen.getByRole('link', { name: /본부 탁송 비용 계산/ })
-    ).toHaveAttribute('href', '/documents/fee/')
+    expect(screen.getByRole('link', { name: /본부 탁송 비용 계산/ })).toHaveAttribute(
+      'href',
+      '/share/documents/fee/'
+    )
+    expect(screen.getByRole('link', { name: /본부 탁송 비용 계산/ })).toHaveAttribute(
+      'data-next-link',
+      'true'
+    )
   })
 })
 

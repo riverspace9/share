@@ -1,3 +1,3 @@
-export default function HomePage() {
-  return <h1>전달 문서</h1>
-}
+import { DocumentListPage } from '@/components/documents/document-list-page'
+
+export default DocumentListPage
