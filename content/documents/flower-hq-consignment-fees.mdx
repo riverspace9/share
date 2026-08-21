@@ -6,7 +6,7 @@ import {
   MermaidDiagram,
   SourceReference,
 } from '@/components/documents'
-import { consignmentFeeDiagram } from '@/content/diagrams'
+import { consignmentFeeDiagram, deliveryFeeLookupDiagram } from '@/content/diagrams'
 
 export const documentMeta = {
   slug: 'flower-hq-consignment-fees',
@@ -16,14 +16,6 @@ export const documentMeta = {
   order: 20,
   tags: ['플라워', '탁송', '배송비'],
 }
-
-export const deliveryFeeLookupDiagram = `flowchart LR
-  Company["하차 본부 legacyBpCode"] --> Zone["BP_CD + REGION_CD → DLVY_ZONE1"]
-  Destination["발주 dlvyCd"] --> Region["REGION_CD"]
-  Region --> Zone
-  Zone --> Rates["A01 구역 단가"]
-  Fixed["C03ㆍC04 고정 1구역"] --> Rates
-  Rates --> Fee["하차 배송비"]`
 
 이 문서는 HJW 본부 주문에 공통 계산기를 연결할 때 적용할 탁송비와 배송비 기준을 설명합니다. 현재 backend에는 공통 계산기와 FSMS 호출부가 있고 HJW 호출부는 연결되지 않았습니다.
 

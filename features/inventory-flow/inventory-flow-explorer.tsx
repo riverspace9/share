@@ -13,7 +13,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
 
 import { inventoryFlows } from './inventory-flow.data'
 import { buildInventorySnapshot } from './inventory-flow.reducer'

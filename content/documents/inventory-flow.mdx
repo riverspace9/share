@@ -1,5 +1,9 @@
 import { Callout, MermaidDiagram } from '@/components/documents'
-import { inventoryFlowDiagram } from '@/content/diagrams'
+import {
+  inventoryFlowDiagram,
+  inventoryHeaderItemDiagram,
+  inventoryTransferBoundaryDiagram,
+} from '@/content/diagrams'
 import { InventoryFlowExplorer } from '@/features/inventory-flow/inventory-flow-explorer'
 
 export const documentMeta = {
@@ -67,9 +71,13 @@ export const documentMeta = {
 - `InvTransfers` 1행은 `InvTransferItems` N행을 가집니다.
 - `InventoryAudits` 1행은 `InventoryAuditItems` N행을 가집니다.
 
+<MermaidDiagram code={inventoryHeaderItemDiagram} title="헤더와 품목 행 관계" />
+
 ### 핵심 관계는 이동이 전표 두 건을 참조하는 것이다
 
 회사 사이 이동 1건은 출고 전표 1건과 입고 전표 1건을 만듭니다. 출발 회사에서 나간 사건과 도착 회사로 들어온 사건이 별개로 기록되고, `InvTransfers.issue_id`와 `InvTransfers.receipt_id`가 두 전표를 참조합니다.
+
+<MermaidDiagram code={inventoryTransferBoundaryDiagram} title="회사 사이 이동과 출고ㆍ입고 전표 관계" />
 
 ### 보유 재고를 수량 단위와 개별 단위로 나눠 저장한다
 

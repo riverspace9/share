@@ -53,7 +53,9 @@ describe('MermaidDiagram 렌더링', () => {
     prefersDark = false
     mediaListeners.clear()
     initialize.mockReset()
-    renderMermaid.mockReset().mockResolvedValue({ svg: '<svg><title>계산 흐름</title></svg>' })
+    renderMermaid.mockReset().mockResolvedValue({
+      svg: '<svg width="100%" style="max-width: 960px;"><title>계산 흐름</title></svg>',
+    })
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn(() => mediaQuery),
@@ -77,7 +79,19 @@ describe('MermaidDiagram 렌더링', () => {
       securityLevel: 'strict',
       theme: 'default',
     })
-    expect(screen.getByRole('img', { name: '계산 흐름' }).querySelector('svg')).not.toBeNull()
+    const svg = screen.getByRole('img', { name: '계산 흐름' }).querySelector('svg')
+    expect(svg).toHaveStyle({ maxWidth: 'none', width: '960px' })
+  })
+
+  it('넓은 다이어그램을 위한 가로 스크롤 영역을 제공한다', async () => {
+    render(<MermaidDiagram title="계산 흐름" code={'flowchart LR\nA-->B'} />)
+
+    await waitFor(() => expect(renderMermaid).toHaveBeenCalledTimes(1))
+
+    const viewport = screen.getByRole('img', { name: '계산 흐름' }).closest(
+      '[data-slot="scroll-area-viewport"]'
+    )
+    expect(viewport).toHaveStyle({ overflowX: 'scroll' })
   })
 
   it('렌더링이 실패하면 오류와 원문을 표시한다', async () => {

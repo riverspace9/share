@@ -24,6 +24,20 @@ function getMermaidTheme(): MermaidTheme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
 }
 
+function preserveDiagramWidth(renderedSvg: string) {
+  const template = document.createElement('template')
+  template.innerHTML = renderedSvg
+  const svg = template.content.querySelector('svg')
+  const naturalWidth = svg?.style.maxWidth
+
+  if (svg && naturalWidth && /^\d+(?:\.\d+)?px$/.test(naturalWidth)) {
+    svg.style.width = naturalWidth
+    svg.style.maxWidth = 'none'
+  }
+
+  return template.innerHTML
+}
+
 export function MermaidDiagram({ title, code }: MermaidDiagramProps) {
   const id = useId().replace(/:/g, '')
   const [theme, setTheme] = useState<MermaidTheme>('default')
@@ -52,7 +66,7 @@ export function MermaidDiagram({ title, code }: MermaidDiagramProps) {
         mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme })
         const { svg: renderedSvg } = await mermaid.render(`mermaid-${id}`, code)
         if (active) {
-          setSvg(renderedSvg)
+          setSvg(preserveDiagramWidth(renderedSvg))
         }
       } catch (renderError) {
         if (active) {

@@ -106,13 +106,15 @@ export function InventoryFlowTable({
               )}
             >
               <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-mono font-semibold">{table}</h4>
                     {reorderChanged ? <Badge variant="outline">{schema.group}</Badge> : null}
                     {tableChanges ? <Badge>변경</Badge> : null}
                   </div>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{schema.role}</p>
+                  <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">
+                    {schema.role}
+                  </p>
                 </div>
                 <Badge variant="secondary">{tableRows.length}행</Badge>
               </div>

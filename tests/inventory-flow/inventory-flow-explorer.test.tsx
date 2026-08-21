@@ -1,7 +1,39 @@
 import * as React from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterAll, afterEach, beforeAll } from 'vitest'
 
 import { InventoryFlowExplorer } from '@/features/inventory-flow/inventory-flow-explorer'
+
+const hadScrollIntoView = 'scrollIntoView' in HTMLElement.prototype
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+
+beforeAll(() => {
+  if (!hadScrollIntoView) {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value() {
+        return undefined
+      },
+    })
+  }
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+afterAll(() => {
+  if (hadScrollIntoView) {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: originalScrollIntoView,
+    })
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+  }
+})
 
 describe('재고 입출고 탐색기', () => {
   it('흐름과 단계를 바꾸고 현재 단계의 설명을 표시한다', () => {
@@ -18,7 +50,7 @@ describe('재고 입출고 탐색기', () => {
   })
 
   it('전체 흐름 행으로 단계를 선택하고 미구현 내용을 표시한다', () => {
-    HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined)
     render(<InventoryFlowExplorer />)
 
     fireEvent.click(screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ }))
@@ -29,8 +61,9 @@ describe('재고 입출고 탐색기', () => {
   })
 
   it('전체 흐름의 담당자 셀을 눌러 단계를 선택하고 표 위치로 이동한다', () => {
-    const scrollIntoView = vi.fn()
-    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => undefined)
     render(<InventoryFlowExplorer />)
 
     const row = screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ })
@@ -41,8 +74,9 @@ describe('재고 입출고 탐색기', () => {
   })
 
   it('전체 흐름 행을 키보드로 선택하고 표 위치로 이동한다', () => {
-    const scrollIntoView = vi.fn()
-    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => undefined)
     render(<InventoryFlowExplorer />)
 
     const enterRow = screen.getByRole('row', { name: /4\. 상품 출고.*협력사 담당자/ })
@@ -76,8 +110,9 @@ describe('재고 입출고 탐색기', () => {
   })
 
   it('변경 테이블 이동과 위 정렬을 제공한다', () => {
-    const scrollIntoView = vi.fn()
-    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => undefined)
     render(<InventoryFlowExplorer />)
 
     fireEvent.click(screen.getByRole('tab', { name: /탁송/ }))
