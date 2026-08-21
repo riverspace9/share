@@ -29,8 +29,9 @@ test('문서 목록과 직접 경로가 새로고침 후에도 열린다', async
   await expect(page.getByRole('heading', { name: '본부 탁송 비용 계산' })).toBeVisible()
 })
 
-test('재고 문서의 흐름과 단계, 정렬, Mermaid를 조작할 수 있다', async ({ page }) => {
+test('재고 문서 직접 경로를 새로고침한 뒤 흐름과 단계, 정렬, Mermaid를 조작할 수 있다', async ({ page }) => {
   await page.goto('/share/documents/inventory-flow/')
+  await page.reload()
 
   await expect(page.getByRole('heading', { name: '재고 입출고 흐름' })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(5)
